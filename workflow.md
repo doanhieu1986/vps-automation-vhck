@@ -1,0 +1,38 @@
+# **Quy trình xử lý cập nhật thông tin quyền của mã chứng khoán lên hệ thống BO**
+- **Bước 1:** Đọc file chứa danh sách các mã chứng khoán (chỉ riêng với Trái phiếu) cần xử lý tại `symbol.md`
+- **Bước 2:** Gọi python script hoặc call API để thực hiện lấy thông tin quyền của Cổ phiếu và Trái phiếu trên các nguồn VSD (`https://www.vsd.vn/vi/`), HNX (`https://www.hnx.vn/vi-vn/`), HOSE (`https://www.hsx.vn/vi/`), theo nguyên tắc:
+    - Lấy thông tin quyền của tất cả các mã cổ phiếu và các mã trái phiếu được chỉ định tại `symbol.md`
+    - Tra cứu thông tin trên VSD trước. Thông tin lấy tại mục tin tức thị trường cơ sở (`https://www.vsd.vn/vi/tin-thi-truong-co-so`). Trường hợp không có thì tìm kiếm tiếp tục trên HNX và HOSE để tìm kiếm thêm thông tin.
+    - Thông tin lấy trên HNX:
+        - Tại Tab Trái phiếu → Niêm yết → Danh sách trái phiếu → Tìm mã trái phiếu → Mở link → lấy thông tin bổ sung,
+        - Tại Tab Cổ phiếu → Cổ phiếu niêm yết → Thông tin công bố → Tin từ Sở → Click tin tức → lấy thông tin bổ sung (file PDF, ảnh)
+    - Thông tin lấy trên HOSE: Lấy tại mục Niêm yết → CW → Tìm mã CW → Tab Tin tức → Click Tin tức → lấy thông tin bổ sung (file PDF, ảnh)
+    - Đối với trái phiếu chỉ lấy thông tin của các mã có số dư tại VPS
+    - Các thông tin cần lấy bao gồm:
+        - Đối với Cổ phiếu: 
+            - Quyền nhận cổ tức bằng tiền / bằng cổ phiếu / thưởng cổ phiếu.
+            - Quyền mua cổ phiếu phát hành thêm (right issue).
+            - Quyền bỏ phiếu (đại hội cổ đông).
+            - Quyền tách/gộp cổ phiếu, thay đổi mệnh giá, đổi tên.
+            - Quyền hoán đổi, sáp nhập, chia tách công ty.
+            - Quyền chuyển nhượng quyền mua / quyền tham gia.
+        - Đối với Trái phiếu: 
+            - Quyền nhận lãi định kỳ / trả gốc khi đáo hạn.
+            - Quyền chuyển đổi (đối với trái phiếu chuyển đổi).
+            - Các quyền khác (mua lại, hoán đổi…).
+        - Tên tổ chức đăng ký chứng khoán
+        - Tên chứng khoán
+        - Mã chứng khoán
+        - Mã ISIN
+        - Nơi giao dịch
+        - Loại chứng khoán
+        - Ngày đăng ký cuối cùng
+        - Lý do mục đích
+        - Tỷ lệ thực hiện
+        - Thời gian thực hiện
+        - Địa điểm thực hiện
+    - Tần suất lấy thông tin: 2 lần/ngày vào 12h00 và 17h00
+- **Bước 3:** Lưu thông tin vào file `result.md` 
+- **Bước 4:** Hiển thị thông tin kết quả thu thập được lên giao diện web, mục đích để VHCK review thông tin và xác nhận việc sẽ nhập thông tin vào BO. Thông tin hiển thị cần có cả link để xem thông tin gốc hoặc ảnh, hoặc full text để VHCK có thể dễ dàng tra cứu và xác nhận thông tin.
+- **Bước 5:** Sau khi VHCK xác nhận thông tin, hệ thống sẽ tự động cập nhật trạng thái `result.md` thành `confirmed` và hiển thị trạng thái `confirmed` trên giao diện web.
+- **Bước 6:** Nếu thông tin sai lệch cho phép VHCK khai báo lại thông tin trực tiếp để cập nhật `result.md` và thực hiện lại bước 5. Sau khi VHCK xác nhận thông tin, hệ thống sẽ tự động cập nhật trạng thái `result.md` thành `confirmed` và hiển thị trạng thái `confirmed` trên giao diện web. Nếu VHCK không xác nhận thông tin, hệ thống sẽ hiển thị trạng thái `rejected` trên giao diện web.
