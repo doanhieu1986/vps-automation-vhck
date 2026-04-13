@@ -3,24 +3,16 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "hours": 12,
-              "minutes": 0
-            },
-            {
-              "hours": 17,
-              "minutes": 0
-            }
-          ]
-        }
+        "cronExpression": "0 12,17 * * *"
       },
       "id": "trigger-schedule",
-      "name": "⏰ Schedule (12h, 17h)",
-      "type": "n8n-nodes-base.schedule",
+      "name": "⏰ Cron (12h, 17h)",
+      "type": "n8n-nodes-base.cron",
       "typeVersion": 1,
-      "position": [50, 200]
+      "position": [
+        50,
+        200
+      ]
     },
     {
       "parameters": {},
@@ -28,129 +20,96 @@
       "name": "🔘 Manual Trigger (Test)",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [50, 400]
+      "position": [
+        50,
+        400
+      ]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "http://localhost:4000/api/fetch-vsd"
+        "jsCode": "const { spawn } = require('child_process');\n\nreturn new Promise((resolve) => {\n  const scriptPath = '/app/vps-automation-vhck/scripts/fetch_vsd.py';\n  const pythonExe = 'python3';\n\n  const pythonProcess = spawn(pythonExe, [scriptPath]);\n  let output = '';\n  let errorOutput = '';\n\n  pythonProcess.stdout.on('data', (data) => {\n    output += data.toString();\n  });\n\n  pythonProcess.stderr.on('data', (data) => {\n    errorOutput += data.toString();\n  });\n\n  pythonProcess.on('close', (code) => {\n    if (code !== 0) {\n      resolve([{\n        json: {\n          error: 'Script exited with code ' + code,\n          stderr: errorOutput,\n          status: 'error'\n        }\n      }]);\n      return;\n    }\n\n    try {\n      const vsdData = JSON.parse(output);\n      resolve([{ json: { data: vsdData } }]);\n    } catch (e) {\n      resolve([{\n        json: {\n          error: 'Failed to parse JSON output',\n          message: e.message,\n          status: 'error'\n        }\n      }]);\n    }\n  });\n\n  pythonProcess.on('error', (error) => {\n    resolve([{\n      json: {\n        error: error.message,\n        status: 'error'\n      }\n    }]);\n  });\n});"
       },
       "id": "node-fetch-vsd",
       "name": "1️⃣ Fetch VSD (Tin Tức)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [250, 100],
-      "retryStrategy": {
-        "maxAttempts": 2,
-        "delayBetweenAttempts": 2000
-      }
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        250,
+        100
+      ]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "http://localhost:4000/api/fetch-hnx"
-      },
-      "id": "node-fetch-hnx",
-      "name": "2️⃣ Fetch HNX (Trái Phiếu)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [250, 250],
-      "retryStrategy": {
-        "maxAttempts": 2,
-        "delayBetweenAttempts": 2000
-      }
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "http://localhost:4000/api/fetch-hose"
-      },
-      "id": "node-fetch-hose",
-      "name": "3️⃣ Fetch HOSE (Chứng Chỉ)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [250, 400],
-      "retryStrategy": {
-        "maxAttempts": 2,
-        "delayBetweenAttempts": 2000
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Combine results from all three sources\nconst vsdResult = $node[\"1️⃣ Fetch VSD (Tin Tức)\"].json;\nconst hnxResult = $node[\"2️⃣ Fetch HNX (Trái Phiếu)\"].json;\nconst hoseResult = $node[\"3️⃣ Fetch HOSE (Chứng Chỉ)\"].json;\n\n// Merge all data from three sources\nconst allRecords = [];\nconst recordMap = {};\n\n// Add VSD records\nif (vsdResult?.data && Array.isArray(vsdResult.data)) {\n  vsdResult.data.forEach(record => {\n    allRecords.push({ ...record, source: 'VSD' });\n    recordMap[record.code] = record;\n  });\n}\n\n// Add HNX records (if not already in VSD)\nif (hnxResult?.data && Array.isArray(hnxResult.data)) {\n  hnxResult.data.forEach(record => {\n    if (!recordMap[record.code]) {\n      allRecords.push({ ...record, source: 'HNX' });\n      recordMap[record.code] = record;\n    }\n  });\n}\n\n// Add HOSE records (if not already in other sources)\nif (hoseResult?.data && Array.isArray(hoseResult.data)) {\n  hoseResult.data.forEach(record => {\n    if (!recordMap[record.code]) {\n      allRecords.push({ ...record, source: 'HOSE' });\n      recordMap[record.code] = record;\n    }\n  });\n}\n\nreturn [{\n  vsd_count: vsdResult?.count || 0,\n  hnx_count: hnxResult?.count || 0,\n  hose_count: hoseResult?.count || 0,\n  total_unique: allRecords.length,\n  vsd_status: vsdResult?.status,\n  hnx_status: hnxResult?.status,\n  hose_status: hoseResult?.status,\n  all_records: allRecords,\n  vsd_data: vsdResult,\n  hnx_data: hnxResult,\n  hose_data: hoseResult,\n  collected_at: new Date().toISOString()\n}];"
+        "jsCode": "const vsdOutput = $node[\"1️⃣ Fetch VSD (Tin Tức)\"].json;\nconst vsdResult = vsdOutput.data || vsdOutput;\n\nconst allRecords = [];\nconst recordMap = {};\n\nif (vsdResult && vsdResult.data && Array.isArray(vsdResult.data)) {\n  vsdResult.data.forEach(record => {\n    allRecords.push({ ...record, source: 'VSD' });\n    recordMap[record.code] = record;\n  });\n}\n\nreturn [{\n  json: {\n    vsd_count: vsdResult && vsdResult.count ? vsdResult.count : 0,\n    total_unique: allRecords.length,\n    vsd_status: vsdResult && vsdResult.status ? vsdResult.status : 'unknown',\n    all_records: allRecords,\n    vsd_data: vsdResult,\n    collected_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "node-combine-results",
       "name": "4️⃣ Combine Results",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [550, 250]
+      "position": [
+        550,
+        250
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const combined = $node[\"4️⃣ Combine Results\"].json;\nconst records = combined.all_records;\n\nconst processed = records.map(record => ({\n  code: record.code,\n  symbol: record.code,\n  mã_chứng_khoán: record.code,\n  tên_tổ_chức_đăng_ký: record.tên_tổ_chức_đăng_ký || 'Cần cập nhật',\n  tên_chứng_khoán: record.tên_chứng_khoán || 'Cần cập nhật',\n  mã_isin: record.mã_isin || 'Cần cập nhật',\n  nơi_giao_dịch: record.nơi_giao_dịch || record.source || 'N/A',\n  loại_chứng_khoán: record.loại_chứng_khoán || 'Trái Phiếu',\n  ngày_đăng_ký_cuối: record.ngày_đăng_ký_cuối || 'Cần cập nhật',\n  lý_do_mục_đích: record.lý_do_mục_đích || 'Cần cập nhật',\n  tỷ_lệ_thực_hiện: record.tỷ_lệ_thực_hiện || 'Cần cập nhật',\n  thời_gian_thực_hiện: record.thời_gian_thực_hiện || 'Cần cập nhật',\n  địa_điểm_thực_hiện: record.địa_điểm_thực_hiện || 'Cần cập nhật',\n  quyền_nhận_lãi: record.quyền_nhận_lãi || 'Chưa xác định',\n  quyền_trả_gốc: record.quyền_trả_gốc || 'Chưa xác định',\n  quyền_chuyển_đổi: record.quyền_chuyển_đổi || 'Chưa xác định',\n  \n  source: record.source,\n  title: record.title,\n  url: record.url,\n  \n  status: 'pending',\n  confirmation_status: 'awaiting_review',\n  collected_at: combined.collected_at,\n  source_links: {\n    vsd: 'https://www.vsd.vn/vi/tin-thi-truong-co-so',\n    hnx: 'https://www.hnx.vn/vi-vn/trai-phieu',\n    hose: 'https://www.hsx.vn/vi/tra-cuu/chung-chi'\n  }\n}));\n\nreturn processed;"
+        "jsCode": "const input = $input.first().json;\nconst combined = input;\nconst records = combined.all_records || [];\n\nconst processed = records.map(record => ({\n  code: record.code,\n  symbol: record.code,\n  mã_chứng_khoán: record.code,\n  tên_tổ_chức_đăng_ký: record.tên_tổ_chức_đăng_ký || 'Cần cập nhật',\n  tên_chứng_khoán: record.tên_chứng_khoán || 'Cần cập nhật',\n  mã_isin: record.mã_isin || 'Cần cập nhật',\n  nơi_giao_dịch: record.nơi_giao_dịch || record.source || 'N/A',\n  loại_chứng_khoán: record.loại_chứng_khoán || 'Trái Phiếu',\n  ngày_đăng_ký_cuối: record.ngày_đăng_ký_cuối || 'Cần cập nhật',\n  lý_do_mục_đích: record.lý_do_mục_đích || 'Cần cập nhật',\n  tỷ_lệ_thực_hiện: record.tỷ_lệ_thực_hiện || 'Cần cập nhật',\n  thời_gian_thực_hiện: record.thời_gian_thực_hiện || 'Cần cập nhật',\n  địa_điểm_thực_hiện: record.địa_điểm_thực_hiện || 'Cần cập nhật',\n  quyền_nhận_lãi: record.quyền_nhận_lãi || 'Chưa xác định',\n  quyền_trả_gốc: record.quyền_trả_gốc || 'Chưa xác định',\n  quyền_chuyển_đổi: record.quyền_chuyển_đổi || 'Chưa xác định',\n  source: record.source,\n  title: record.title,\n  url: record.url,\n  status: 'pending',\n  confirmation_status: 'awaiting_review',\n  collected_at: combined.collected_at,\n  source_links: { vsd: 'https://www.vsd.vn/vi/tin-thi-truong-co-so' }\n}));\n\nreturn [{ json: { records: processed, total: processed.length } }];"
       },
       "id": "node-process-data",
       "name": "5️⃣ Process & Structure Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [750, 250]
+      "position": [
+        750,
+        250
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const records = $input.all().map(item => item.json);\nconst combined = $node[\"4️⃣ Combine Results\"].json;\nconst timestamp = new Date().toLocaleString('vi-VN');\n\nconst summary = {\n  total: records.length,\n  vsd: combined.vsd_count,\n  hnx: combined.hnx_count,\n  hose: combined.hose_count,\n  total_unique: combined.total_unique,\n  pending_confirmation: records.filter(r => r.confirmation_status === 'awaiting_review').length\n};\n\nconst markdown = `# Kết Quả Thu Thập Thông Tin Quyền Chứng Khoán\n\n## 📊 Thống Kê\n\n- **Cập nhật lúc:** ${timestamp}\n- **Tổng bản ghi (duy nhất):** ${summary.total}\n  - VSD: ${summary.vsd}\n  - HNX: ${summary.hnx}\n  - HOSE: ${summary.hose}\n- **Chờ xác nhận:** ${summary.pending_confirmation}\n\n---\n\n## 📋 Chi Tiết Từng Mã\n\n${records.map((r, idx) => `\n### ${idx + 1}. ${r.symbol}\n\n**Thông tin chứng khoán:**\n\n| Trường | Giá trị |\n|-------|--------|\n| Mã chứng khoán | ${r.mã_chứng_khoán} |\n| Tên tổ chức đăng ký | ${r.tên_tổ_chức_đăng_ký} |\n| Tên chứng khoán | ${r.tên_chứng_khoán} |\n| Mã ISIN | ${r.mã_isin} |\n| Nơi giao dịch | ${r.nơi_giao_dịch} |\n| Loại chứng khoán | ${r.loại_chứng_khoán} |\n| Ngày đăng ký cuối | ${r.ngày_đăng_ký_cuối} |\n| Lý do/Mục đích | ${r.lý_do_mục_đích} |\n| Tỷ lệ thực hiện | ${r.tỷ_lệ_thực_hiện} |\n| Thời gian thực hiện | ${r.thời_gian_thực_hiện} |\n| Địa điểm thực hiện | ${r.địa_điểm_thực_hiện} |\n\n**Quyền:**\n- **Nhận lãi:** ${r.quyền_nhận_lãi}\n- **Trả gốc:** ${r.quyền_trả_gốc}\n- **Chuyển đổi:** ${r.quyền_chuyển_đổi}\n\n**Nguồn:** ${r.source} | **Trạng thái xác nhận:** ${r.confirmation_status}\n\n[Xem chi tiết](${r.url})\n\n---\n`).join('\\n')};\n\nreturn [{\n  markdown: markdown,\n  records: records,\n  summary: summary,\n  timestamp: new Date().toISOString()\n}];"
+        "jsCode": "const fs = require('fs');\n\nconst input = $input.first().json;\nconst records = input.records || [];\nconst timestamp = new Date().toLocaleString('vi-VN');\n\nconst summary = {\n  total: records.length,\n  vsd: records.length,\n  total_unique: records.length,\n  pending_confirmation: records.filter(r => r.confirmation_status === 'awaiting_review').length\n};\n\nconst jsonFilePath = '/app/vps-automation-vhck/vsd_records.json';\nconst jsonData = {\n  source: 'VSD',\n  collected_at: new Date().toISOString(),\n  timestamp: timestamp,\n  total_records: records.length,\n  summary: summary,\n  records: records\n};\n\nfs.writeFileSync(jsonFilePath, JSON.stringify(jsonData, null, 2), 'utf-8');\n\nconst markdown = '# Kết Quả Thu Thập Thông Tin Quyền Chứng Khoán\\n\\n## 📊 Thống Kê\\n\\n- **Cập nhật lúc:** ' + timestamp + '\\n- **Tổng bản ghi (duy nhất):** ' + summary.total + '\\n  - VSD: ' + summary.vsd + '\\n- **Chờ xác nhận:** ' + summary.pending_confirmation + '\\n\\n---';\n\nreturn [{\n  json: {\n    markdown: markdown,\n    records: records,\n    summary: summary,\n    timestamp: new Date().toISOString(),\n    json_file: jsonFilePath,\n    json_size: fs.statSync(jsonFilePath).size\n  }\n}];"
       },
       "id": "node-generate-markdown",
       "name": "6️⃣ Generate Markdown Report",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [950, 250]
+      "position": [
+        950,
+        250
+      ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://localhost:3000/api/save-result",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "body": {
-          "markdown": "={{ $node[\"6️⃣ Generate Markdown Report\"].json.markdown }}",
-          "records": "={{ $node[\"6️⃣ Generate Markdown Report\"].json.records }}",
-          "summary": "={{ $node[\"6️⃣ Generate Markdown Report\"].json.summary }}"
-        }
+        "jsCode": "const fs = require('fs');\nconst path = '/app/vps-automation-vhck/result.md';\nconst input = $input.first().json;\nconst markdown = input.markdown;\nconst records = input.records;\nconst summary = input.summary;\n\ntry {\n  fs.writeFileSync(path, markdown, 'utf-8');\n  \n  return [{\n    json: {\n      status: 'success',\n      message: 'Saved ' + records.length + ' records to result.md',\n      file: path,\n      timestamp: new Date().toISOString(),\n      records_count: records.length,\n      summary: summary\n    }\n  }];\n} catch (error) {\n  return [{\n    json: {\n      status: 'error',\n      message: error.message,\n      file: path\n    }\n  }];\n}"
       },
       "id": "node-save-result",
-      "name": "7️⃣ Save to result.md (API)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [1150, 250]
+      "name": "7️⃣ Save to result.md (File)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1150,
+        250
+      ]
     },
     {
       "parameters": {
-        "jsCode": "return [{\n  status: 'success',\n  message: 'Workflow hoàn thành!',\n  timestamp: new Date().toISOString(),\n  next_step: 'Mở web interface để review dữ liệu'\n}];"
+        "jsCode": "return [{\n  json: {\n    status: 'success',\n    message: 'Workflow hoàn thành!',\n    timestamp: new Date().toISOString(),\n    next_step: 'Xem result.md để review dữ liệu'\n  }\n}];"
       },
       "id": "node-completion",
       "name": "✅ Workflow Complete",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
-      "position": [1350, 250]
+      "position": [
+        1350,
+        250
+      ]
     }
   ],
   "connections": {
-    "⏰ Schedule (12h, 17h)": {
+    "⏰ Cron (12h, 17h)": {
       "main": [
         [
           {
             "node": "1️⃣ Fetch VSD (Tin Tức)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "2️⃣ Fetch HNX (Trái Phiếu)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "3️⃣ Fetch HOSE (Chứng Chỉ)",
             "type": "main",
             "index": 0
           }
@@ -164,43 +123,11 @@
             "node": "1️⃣ Fetch VSD (Tin Tức)",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "2️⃣ Fetch HNX (Trái Phiếu)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "3️⃣ Fetch HOSE (Chứng Chỉ)",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
     },
     "1️⃣ Fetch VSD (Tin Tức)": {
-      "main": [
-        [
-          {
-            "node": "4️⃣ Combine Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "2️⃣ Fetch HNX (Trái Phiếu)": {
-      "main": [
-        [
-          {
-            "node": "4️⃣ Combine Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "3️⃣ Fetch HOSE (Chứng Chỉ)": {
       "main": [
         [
           {
@@ -237,14 +164,14 @@
       "main": [
         [
           {
-            "node": "7️⃣ Save to result.md (API)",
+            "node": "7️⃣ Save to result.md (File)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "7️⃣ Save to result.md (API)": {
+    "7️⃣ Save to result.md (File)": {
       "main": [
         [
           {

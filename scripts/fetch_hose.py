@@ -36,23 +36,44 @@ class HOSEFetcher:
         except:
             return None
 
+    def extract_field_from_text(self, text, field_label, max_length=500):
+        """
+        Extract field value từ text content dựa trên label
+        Hỗ trợ multi-line content và bullet points
+
+        Ví dụ:
+        "Tỷ lệ thực hiện: ..." => lấy text sau "Tỷ lệ thực hiện:"
+        "Địa điểm thực hiện:\n+ Đối với..." => lấy tất cả bullet points
+        """
+        pattern = f"{field_label}[:\\s]+([^\\n]+(?:\\n\\s*[+\\-•]\\s*[^\\n]+)*)"
+        match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+
+        if match:
+            extracted = match.group(1).strip()
+            # Nếu quá dài, chỉ lấy phần đầu
+            if len(extracted) > max_length:
+                extracted = extracted[:max_length] + "..."
+            return extracted if extracted else None
+        return None
+
     def extract_detail_from_article(self, url):
         """
         Mở URL chứng chỉ và extract chi tiết thông tin từ HTML structure
+        Trả về tuple (info_dict, extracted_code) nếu tìm được mã từ chi tiết
         """
         try:
             response = requests.get(url, headers=self.headers, timeout=10)
             response.encoding = 'utf-8'
 
             if response.status_code != 200:
-                return None
+                return None, None
 
             soup = BeautifulSoup(response.content, 'html.parser')
 
             # Extract text content
             main = soup.find('main') or soup.find('article') or soup.find('div', class_=re.compile('content|body'))
             if not main:
-                return None
+                return None, None
 
             text_content = main.get_text()
 
@@ -73,6 +94,8 @@ class HOSEFetcher:
                 'quyền_chuyển_đổi': None
             }
 
+            extracted_code = None
+
             # Find all label-value pairs
             label_divs = soup.find_all('div', class_=re.compile('col-md-4|label|info'))
 
@@ -92,6 +115,9 @@ class HOSEFetcher:
                     info['tên_tổ_chức_đăng_ký'] = value
                 elif 'tên chứng khoán' in label or 'tên chứng chỉ' in label:
                     info['tên_chứng_khoán'] = value
+                elif 'mã chứng khoán' in label or 'mã ck' in label:
+                    # Nếu có trường "Mã chứng khoán", lấy mã từ đây
+                    extracted_code = value
                 elif 'mã isin' in label:
                     info['mã_isin'] = value
                 elif 'nơi giao dịch' in label or 'sở giao dịch' in label:
@@ -109,6 +135,36 @@ class HOSEFetcher:
                 elif 'địa điểm' in label and 'thực hiện' in label:
                     info['địa_điểm_thực_hiện'] = value
 
+            # Nếu không tìm được từ HTML structure, thử lấy từ text content
+            # Vì thông tin này có thể ở dạng bullet points hoặc multi-line
+            if not info['tỷ_lệ_thực_hiện']:
+                info['tỷ_lệ_thực_hiện'] = self.extract_field_from_text(
+                    text_content,
+                    'Tỷ lệ thực hiện',
+                    max_length=500
+                )
+
+            if not info['thời_gian_thực_hiện']:
+                info['thời_gian_thực_hiện'] = self.extract_field_from_text(
+                    text_content,
+                    'Thời gian thực hiện',
+                    max_length=300
+                )
+
+            if not info['địa_điểm_thực_hiện']:
+                info['địa_điểm_thực_hiện'] = self.extract_field_from_text(
+                    text_content,
+                    'Địa điểm thực hiện',
+                    max_length=500
+                )
+
+            if not info['lý_do_mục_đích']:
+                info['lý_do_mục_đích'] = self.extract_field_from_text(
+                    text_content,
+                    'Lý do|Mục đích',
+                    max_length=300
+                )
+
             # Find quyền from text content
             text_lower = text_content.lower()
 
@@ -121,11 +177,11 @@ class HOSEFetcher:
             if any(word in text_lower for word in ['chuyển đổi', 'hoán đổi']):
                 info['quyền_chuyển_đổi'] = 'Có'
 
-            return info
+            return info, extracted_code
 
         except Exception as e:
             logger.debug(f"  ! Error extracting detail: {str(e)[:50]}")
-            return None
+            return None, None
 
     def fetch_latest_cw(self):
         """
@@ -193,12 +249,15 @@ class HOSEFetcher:
                 logger.info(f"    [{idx}/{min(20, len(all_cw))}] {cw['code']}: {cw['title'][:50]}")
 
                 # Extract chi tiết từ chứng chỉ
-                detail = None
+                detail, extracted_code = None, None
                 if cw['url']:
-                    detail = self.extract_detail_from_article(cw['url'])
+                    detail, extracted_code = self.extract_detail_from_article(cw['url'])
+
+                # Ưu tiên mã được lấy từ chi tiết nếu có
+                final_code = extracted_code if extracted_code else cw['code']
 
                 result_item = {
-                    'code': cw['code'],
+                    'code': final_code,
                     'title': cw['title'],
                     'url': cw['url'],
                     'source': 'HOSE'
