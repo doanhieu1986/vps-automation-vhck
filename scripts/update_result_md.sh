@@ -27,6 +27,7 @@ try {
   // Merge với records cũ từ vsd_records.json
   let allRecords = (vsdResult.data || []);
   let existingCount = 0;
+  const newCount = allRecords.length;
 
   if (fs.existsSync('data/vsd_records.json')) {
     try {
@@ -44,11 +45,18 @@ try {
         }
       }
 
-      console.log(`✓ Merged ${vsdResult.count} NEW + ${existingCount} EXISTING = ${allRecords.length} TOTAL`);
+      console.log(`✓ Merged ${newCount} NEW + ${existingCount} EXISTING = ${allRecords.length} TOTAL`);
     } catch (e) {
       console.log(`⚠ Warning: Could not merge existing records: ${e.message}`);
     }
   }
+
+  // Store counts for later use
+  const recordStats = {
+    newCount: newCount,
+    existingCount: existingCount,
+    totalCount: allRecords.length
+  };
 
   // Process all records
   const records = allRecords.map(record => ({
@@ -117,10 +125,12 @@ try {
     }
   }
 
-  // Generate update section
+  // Generate update section with new/existing record counts
   const updateSection = `## 📊 Thống Kê
 
 - **Cập nhật lúc:** ${timestamp}
+- **Records mới:** ${recordStats.newCount} (từ ngày gần nhất)
+- **Records cũ:** ${recordStats.existingCount} (từ những ngày trước)
 - **Tổng bản ghi (duy nhất):** ${summary.total}
   - VSD: ${summary.vsd}
 - **Chờ xác nhận:** ${summary.pending_confirmation}
