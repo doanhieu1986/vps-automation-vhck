@@ -38,18 +38,21 @@ try {
 
       // Create map of existing codes để check duplicate
       const existingCodes = new Set(existingRecords.map(r => r.code));
+      const allSeenCodes = new Set(existingCodes);  // Track all codes to prevent ANY duplicate
 
       // Đếm bao nhiêu records mới thực sự là unique (không có trong existing)
       const newRecords = [];
       for (const rec of allRecords) {
-        if (!existingCodes.has(rec.code)) {
+        if (!allSeenCodes.has(rec.code)) {
           newRecords.push(rec);
+          allSeenCodes.add(rec.code);
           insertedCount++;
         }
       }
 
-      // Add existing records
-      allRecords = [...newRecords, ...existingRecords];
+      // Add existing records (after dedup, ensure no duplicates)
+      const dedupedExisting = existingRecords.filter(r => !newRecords.some(nr => nr.code === r.code));
+      allRecords = [...newRecords, ...dedupedExisting];
 
       console.log(`✓ Merged: ${fetchedNewCount} FETCHED, ${insertedCount} NEW INSERT, ${existingCount} EXISTING = ${allRecords.length} TOTAL`);
     } catch (e) {
