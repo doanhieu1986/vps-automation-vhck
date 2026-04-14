@@ -14,9 +14,11 @@ from bs4 import BeautifulSoup
 import json
 import sys
 import time
+import os
 from datetime import datetime, timedelta
 import re
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logging.basicConfig(level=logging.INFO, format='%(message)s', stream=sys.stderr)
 logger = logging.getLogger(__name__)
@@ -65,10 +67,20 @@ class VSDFetcher:
         Trả về tuple (info_dict, extracted_code) nếu tìm được mã từ chi tiết
         """
         try:
-            response = requests.get(url, headers=self.headers, timeout=10)
-            response.encoding = 'utf-8'
+            # Retry logic để đảm bảo page load đầy đủ
+            max_retries = 3
+            response = None
+            for attempt in range(max_retries):
+                response = requests.get(url, headers=self.headers, timeout=10)
+                response.encoding = 'utf-8'
 
-            if response.status_code != 200:
+                if response.status_code == 200:
+                    break
+
+                if attempt < max_retries - 1:
+                    time.sleep(0.2)  # Wait before retry
+
+            if response is None or response.status_code != 200:
                 return None, None
 
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -188,80 +200,128 @@ class VSDFetcher:
 
     def fetch_latest_news(self):
         """
-        Crawl trang tin tức VSD:
-        1. Extract danh sách tin từ ngày gần nhất
-        2. Mở từng tin để lấy chi tiết
-        3. Return danh sách mã + chi tiết
+        Crawl tất cả trang tin tức VSD từ ngày gần nhất:
+        1. Lặp qua các trang (page=1, 2, 3, ...)
+        2. Extract danh sách tin từ mỗi trang
+        3. Dừng khi ngày tin giảm xuống (đã hết tin từ ngày gần nhất)
+        4. Mở từng tin để lấy chi tiết
+        5. Return danh sách mã + chi tiết
         """
         try:
-            logger.info(f"🔍 VSD: Crawling tin tức thị trường cơ sở...")
-            response = requests.get(self.news_url, headers=self.headers, timeout=10)
-            response.encoding = 'utf-8'
-
-            if response.status_code != 200:
-                return {
-                    'status': 'error',
-                    'code': response.status_code,
-                    'message': f'HTTP {response.status_code}'
-                }
-
-            soup = BeautifulSoup(response.content, 'html.parser')
-
-            # Tìm tất cả <li> items
-            news_items = soup.find_all('li')
+            logger.info(f"🔍 VSD: Crawling tin tức thị trường cơ sở (multiple pages)...")
             all_news = []
+            page = 1
+            latest_date_found = None
+            max_pages = 25  # Limit ~375 items (25 pages × 15 items/page), dừng sớm khi date thay đổi
 
-            # Extract danh sách tin từ trang chính
-            for item in news_items:
-                h3 = item.find('h3')
-                if not h3:
-                    continue
+            while page <= max_pages:
+                logger.info(f"  📄 Crawling page {page}...")
 
-                link = h3.find('a')
-                if not link:
-                    continue
+                # Construct URL with page parameter
+                page_url = f"{self.news_url}?page={page}&tab=%23tab1"
 
-                title = link.get_text(strip=True)
-                url = link.get('href', '')
+                try:
+                    response = requests.get(page_url, headers=self.headers, timeout=10)
+                    response.encoding = 'utf-8'
 
-                if not title or not url:
-                    continue
+                    if response.status_code != 200:
+                        logger.info(f"  ⚠ Page {page} không tìm được (HTTP {response.status_code})")
+                        break
 
-                # Chỉ lấy tin có mã CK - pattern: CODE: (where CODE is 2-10 chars)
-                if not re.search(r'[A-Z0-9]{2,10}:', title):
-                    continue
+                    soup = BeautifulSoup(response.content, 'html.parser')
 
-                # Extract mã CK from title (allow 2-10 character codes)
-                match = re.search(r'([A-Z0-9]{2,10}):', title)
-                if not match:
-                    continue
+                    # Tìm tất cả <li> items trên trang này
+                    news_items = soup.find_all('li')
+                    page_news = []
 
-                code = match.group(1)
+                    # Extract danh sách tin từ trang hiện tại
+                    for item in news_items:
+                        h3 = item.find('h3')
+                        if not h3:
+                            continue
 
-                # Normalize URL
-                if not url.startswith('http'):
-                    url = self.base_url + url
+                        link = h3.find('a')
+                        if not link:
+                            continue
 
-                # Extract ngày
-                time_div = item.find('div', class_='time-news')
-                date_text = None
-                date_obj = None
+                        title = link.get_text(strip=True)
+                        url = link.get('href', '')
 
-                if time_div:
-                    time_text = time_div.get_text(strip=True)
-                    date_match = re.search(r'(\d{1,2}/\d{1,2}/\d{4})', time_text)
-                    if date_match:
-                        date_text = date_match.group(1)
-                        date_obj = self.parse_date(date_text)
+                        if not title or not url:
+                            continue
 
-                all_news.append({
-                    'code': code,
-                    'title': title,
-                    'url': url,
-                    'date': date_text,
-                    'date_obj': date_obj,
-                    'source': 'VSD'
-                })
+                        # Chỉ lấy tin có mã CK - pattern: CODE: (where CODE is 2-10 chars)
+                        if not re.search(r'[A-Z0-9]{2,10}:', title):
+                            continue
+
+                        # Extract mã CK from title (allow 2-10 character codes)
+                        match = re.search(r'([A-Z0-9]{2,10}):', title)
+                        if not match:
+                            continue
+
+                        code = match.group(1)
+
+                        # Normalize URL
+                        if not url.startswith('http'):
+                            url = self.base_url + url
+
+                        # Extract ngày
+                        time_div = item.find('div', class_='time-news')
+                        date_text = None
+                        date_obj = None
+
+                        if time_div:
+                            time_text = time_div.get_text(strip=True)
+                            date_match = re.search(r'(\d{1,2}/\d{1,2}/\d{4})', time_text)
+                            if date_match:
+                                date_text = date_match.group(1)
+                                date_obj = self.parse_date(date_text)
+
+                        page_news.append({
+                            'code': code,
+                            'title': title,
+                            'url': url,
+                            'date': date_text,
+                            'date_obj': date_obj,
+                            'source': 'VSD'
+                        })
+
+                    if not page_news:
+                        logger.info(f"  ⚠ Page {page} không có tin nào")
+                        break
+
+                    # Xác định ngày gần nhất trên trang này
+                    page_dates = [n['date_obj'] for n in page_news if n['date_obj']]
+                    if not page_dates:
+                        page += 1
+                        continue
+
+                    page_latest_date = max(page_dates)
+
+                    # Lần đầu tiên tìm thấy trang, set latest_date_found
+                    if latest_date_found is None:
+                        latest_date_found = page_latest_date
+                        logger.info(f"  ✓ Ngày gần nhất tìm thấy: {latest_date_found}")
+
+                    # Nếu ngày trên trang này < ngày gần nhất, dừng crawl
+                    if page_latest_date < latest_date_found:
+                        logger.info(f"  ✓ Trang {page} có tin từ {page_latest_date} < {latest_date_found}, dừng crawl")
+                        break
+
+                    # Thêm tin từ trang này vào danh sách
+                    all_news.extend(page_news)
+                    logger.info(f"    Tìm thấy {len(page_news)} tin từ ngày {page_latest_date}")
+
+                    # Rate limiting: no delay between page requests (VSD allows fast crawl)
+                    # time.sleep(0.1)
+                    page += 1
+
+                except requests.exceptions.Timeout:
+                    logger.error(f"  ✗ Page {page}: Request timeout")
+                    break
+                except Exception as e:
+                    logger.error(f"  ✗ Page {page}: {str(e)[:50]}")
+                    break
 
             if not all_news:
                 logger.info(f"  ⚠ Không tìm thấy tin nào trên VSD")
@@ -270,49 +330,111 @@ class VSDFetcher:
                     'message': 'Không tìm thấy tin trên VSD'
                 }
 
-            # Filter chỉ tin từ ngày gần nhất
-            latest_date = max([n['date_obj'] for n in all_news if n['date_obj']])
-            filtered_news = [n for n in all_news if n['date_obj'] == latest_date]
+            # Filter chỉ tin từ ngày gần nhất (tất cả records, không limit)
+            filtered_news = [n for n in all_news if n['date_obj'] == latest_date_found]
 
-            logger.info(f"  ✓ Tìm thấy {len(filtered_news)} tin từ ngày {latest_date}")
-            logger.info(f"  🔗 Đang mở từng tin tức để extract chi tiết...")
+            logger.info(f"  ✓ Tìm thấy {len(filtered_news)} tin từ ngày {latest_date_found} (crawled {page-1} pages)")
+            logger.info(f"  🔗 Extracting details từ tất cả records (concurrent, with retry)...")
 
-            # Mở từng tin tức để lấy chi tiết
+            # Extract chi tiết từ tin tức - concurrent với retry để ensure page load
             result_data = []
-            for idx, news in enumerate(filtered_news, 1):
-                logger.info(f"    [{idx}/{len(filtered_news)}] {news['code']}: {news['title'][:50]}")
 
-                # Extract chi tiết từ tin tức
-                detail, extracted_code = self.extract_detail_from_article(news['url'])
+            def extract_with_retry(news):
+                """Extract chi tiết với retry logic"""
+                max_retries = 2
+                for attempt in range(max_retries):
+                    try:
+                        detail, extracted_code = self.extract_detail_from_article(news['url'])
+                        final_code = extracted_code if extracted_code else news['code']
 
-                # Ưu tiên mã được lấy từ chi tiết nếu có
-                final_code = extracted_code if extracted_code else news['code']
+                        result_item = {
+                            'code': final_code,
+                            'title': news['title'],
+                            'url': news['url'],
+                            'date': news['date'],
+                            'source': 'VSD'
+                        }
 
-                result_item = {
-                    'code': final_code,
-                    'title': news['title'],
-                    'url': news['url'],
-                    'date': news['date'],
-                    'source': 'VSD'
-                }
+                        if detail:
+                            result_item.update(detail)
 
-                if detail:
-                    result_item.update(detail)
+                        return result_item
+                    except Exception as e:
+                        if attempt < max_retries - 1:
+                            time.sleep(0.3)
+                        else:
+                            logger.error(f"Failed {news['code']}: {str(e)[:30]}")
+                            # Return basic item on final failure
+                            return {
+                                'code': news['code'],
+                                'title': news['title'],
+                                'url': news['url'],
+                                'date': news['date'],
+                                'source': 'VSD'
+                            }
 
-                result_data.append(result_item)
+            # Extract từ tất cả records (concurrent)
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = []
+                for idx, news in enumerate(filtered_news):
+                    future = executor.submit(extract_with_retry, news)
+                    futures.append((future, news['code']))
+                    if idx % 10 == 0:  # Minimal delay every 10 items
+                        time.sleep(0.05)
 
-                # Rate limiting: sleep 2 seconds between requests để tránh lỗi
-                time.sleep(2)
+                for future, code in futures:
+                    try:
+                        result_item = future.result()
+                        result_data.append(result_item)
+                        if len(result_data) % 100 == 0:
+                            logger.info(f"    Extracted {len(result_data)}/{len(filtered_news)}")
+                    except Exception as e:
+                        logger.error(f"Future error {code}: {str(e)[:30]}")
 
             logger.info(f"  ✓ Hoàn thành extract chi tiết từ {len(result_data)} tin")
 
+            # Merge với records cũ để tránh duplicate
+            merged_data = result_data  # Mặc định chỉ có data mới
+            total_count = len(result_data)
+
+            # Nếu file vsd_records.json tồn tại, load và merge
+            json_file_path = '/app/vps-automation-vhck/data/vsd_records.json'
+            if os.path.exists(json_file_path):
+                try:
+                    with open(json_file_path, 'r', encoding='utf-8') as f:
+                        existing_data = json.load(f)
+
+                    existing_records = existing_data.get('records', [])
+                    logger.info(f"  📚 Found {len(existing_records)} existing records, merging...")
+
+                    # Create map of new codes để tránh duplicate
+                    new_codes = {r['code']: r for r in result_data}
+
+                    # Thêm existing records nếu không trùng với code mới
+                    for existing_record in existing_records:
+                        if existing_record.get('code') not in new_codes:
+                            merged_data.append(existing_record)
+                        else:
+                            # Nếu code trùng, replace với version mới
+                            logger.debug(f"  ! Updating {existing_record.get('code')} with new data")
+
+                    logger.info(f"  ✓ Merged: {len(result_data)} new + {len(existing_records)} existing = {len(merged_data)} total")
+                    total_count = len(merged_data)
+
+                except Exception as e:
+                    logger.error(f"  ✗ Error merging records: {str(e)[:50]}")
+                    # Fallback: use only new data nếu merge failed
+                    merged_data = result_data
+
             return {
                 'status': 'success',
-                'date': str(latest_date),
-                'data': result_data,
-                'count': len(result_data),
+                'date': str(latest_date_found),
+                'data': merged_data,
+                'count': total_count,
                 'url': self.news_url,
-                'fetched_at': datetime.now().isoformat()
+                'pages_crawled': page - 1,
+                'fetched_at': datetime.now().isoformat(),
+                'merge_info': f'{len(result_data)} new records merged with existing'
             }
 
         except requests.exceptions.Timeout:
