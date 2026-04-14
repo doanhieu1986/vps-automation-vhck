@@ -27,7 +27,8 @@ try {
   // Merge với records cũ từ vsd_records.json
   let allRecords = (vsdResult.data || []);
   let existingCount = 0;
-  const newCount = allRecords.length;
+  const fetchedNewCount = allRecords.length;  // Số records fetch từ VSD
+  let insertedCount = 0;  // Số records thực sự mới (không duplicate)
 
   if (fs.existsSync('data/vsd_records.json')) {
     try {
@@ -35,26 +36,35 @@ try {
       const existingRecords = existing.records || [];
       existingCount = existingRecords.length;
 
-      // Create map of new codes
-      const newCodes = new Set(allRecords.map(r => r.code));
+      // Create map of existing codes để check duplicate
+      const existingCodes = new Set(existingRecords.map(r => r.code));
 
-      // Add existing records if not in new codes
-      for (const rec of existingRecords) {
-        if (!newCodes.has(rec.code)) {
-          allRecords.push(rec);
+      // Đếm bao nhiêu records mới thực sự là unique (không có trong existing)
+      const newRecords = [];
+      for (const rec of allRecords) {
+        if (!existingCodes.has(rec.code)) {
+          newRecords.push(rec);
+          insertedCount++;
         }
       }
 
-      console.log(`✓ Merged ${newCount} NEW + ${existingCount} EXISTING = ${allRecords.length} TOTAL`);
+      // Add existing records
+      allRecords = [...newRecords, ...existingRecords];
+
+      console.log(`✓ Merged: ${fetchedNewCount} FETCHED, ${insertedCount} NEW INSERT, ${existingCount} EXISTING = ${allRecords.length} TOTAL`);
     } catch (e) {
       console.log(`⚠ Warning: Could not merge existing records: ${e.message}`);
+      insertedCount = fetchedNewCount;  // Fallback: assume all are new
     }
+  } else {
+    insertedCount = fetchedNewCount;  // No existing data, all are new
   }
 
   // Store counts for later use
   const recordStats = {
-    newCount: newCount,
-    existingCount: existingCount,
+    fetchedNewCount: fetchedNewCount,  // Từ VSD
+    insertedCount: insertedCount,      // Thực sự mới (after merge check)
+    existingCount: existingCount,      // Từ lần chạy trước
     totalCount: allRecords.length
   };
 
@@ -125,11 +135,12 @@ try {
     }
   }
 
-  // Generate update section with new/existing record counts
+  // Generate update section with detailed record counts
   const updateSection = `## 📊 Thống Kê
 
 - **Cập nhật lúc:** ${timestamp}
-- **Records mới:** ${recordStats.newCount} (từ ngày gần nhất)
+- **Records fetch từ VSD:** ${recordStats.fetchedNewCount} (ngày gần nhất)
+- **Records insert mới:** ${recordStats.insertedCount} (không duplicate)
 - **Records cũ:** ${recordStats.existingCount} (từ những ngày trước)
 - **Tổng bản ghi (duy nhất):** ${summary.total}
   - VSD: ${summary.vsd}
