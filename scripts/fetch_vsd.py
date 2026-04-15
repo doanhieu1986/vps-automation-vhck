@@ -23,7 +23,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # ============================================================================
 # CONFIGURATION - Thay đổi giá trị này để điều chỉnh số ngày cần lấy
 # ============================================================================
-KEEP_DAYS = 2  # Số ngày gần nhất cần lấy (1=ngày mới nhất, 2=2 ngày, 3=3 ngày, ...)
+KEEP_DAYS = 1  # Số ngày gần nhất cần lấy (1=ngày mới nhất, 2=2 ngày, 3=3 ngày, ...)
 # ============================================================================
 
 logging.basicConfig(level=logging.INFO, format='%(message)s', stream=sys.stderr)
