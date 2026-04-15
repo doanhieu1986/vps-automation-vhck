@@ -36,11 +36,11 @@ flowchart TD
     I -->|Không| J["Dừng crawl"]
     I -->|Có| K["Tính min/max date"]
     
-    K --> L{"Oldest date<br/>LTE cutoff_date<br/>2-3 ngày cũ?"}
+    K --> L{"Oldest date<br/><= cutoff_date<br/>2-3 ngày cũ?"}
     L -->|Có| M["Dừng crawl<br/>Gặp tin cũ"]
     L -->|Không| N["Trang tiếp theo"]
     
-    N --> O{"Trang LTE<br/>max_pages?"}
+    N --> O{"Trang <=<br/>max_pages?"}
     O -->|Có| P["Trang 2, 3, 4..."]
     P --> F
     O -->|Không| M
@@ -72,22 +72,22 @@ Crawl từng trang tin tức để lấy danh sách tin có mã chứng khoán, 
 flowchart LR
     A["Trang 1"] -->|Items| B["Tìm: mã CK<br/>14 items"]
     B --> C["Dates: 14/04, 15/04<br/>oldest=14, latest=15"]
-    C --> D{"14 LTE cutoff?"}
+    C --> D{"14 <= cutoff?"}
     D -->|Không| E["Trang 2"]
     E -->|Items| F["Tìm: mã CK<br/>15 items"]
     F --> G["Dates: 14/04<br/>oldest=14, latest=14"]
-    G --> H{"14 LTE cutoff?"}
+    G --> H{"14 <= cutoff?"}
     H -->|Không| I["Trang 3-5..."]
     I --> J["Trang 6"]
     J -->|Items| K["Dates: 13/04, 14/04<br/>oldest=13, latest=14"]
-    K --> L{"13 LTE 13?"}
+    K --> L{"13 <= 13?"}
     L -->|Có| M["DỪNG crawl"]
     M --> N["All news: 88 items<br/>từ 13/04-15/04"]
 ```
 
 **Logic dừng crawl:**
 - `cutoff_date = today - 2 days = 13/04`
-- Khi tìm thấy `page_oldest_date LTE 13/04` → **DỪNG**
+- Khi tìm thấy `page_oldest_date <= 13/04` → **DỪNG**
 - Vì đã chạm mốc 2 ngày tuổi
 
 **Kết quả:** `all_news` = 88 tin từ các trang 1-6
@@ -107,9 +107,9 @@ flowchart TD
     C -->|2| E["min_keep_date = 15/04 - 1 = 14/04"]
     C -->|3| F["min_keep_date = 15/04 - 2 = 13/04"]
     
-    D --> G["Filter: date GTE 15/04"]
-    E --> H["Filter: date GTE 14/04"]
-    F --> I["Filter: date GTE 13/04"]
+    D --> G["Filter: date >= 15/04"]
+    E --> H["Filter: date >= 14/04"]
+    F --> I["Filter: date >= 13/04"]
     
     G --> J["filtered_news: 2 tin<br/>chỉ 15/04"]
     H --> K["filtered_news: 86 tin<br/>14/04-15/04"]
@@ -128,7 +128,7 @@ filtered_news = [n for n in all_news if n['date_obj'] >= min_keep_date]
 
 **Ví dụ với KEEP_DAYS=2:**
 - `min_keep_date = 15/04 - (2-1) = 14/04`
-- Giữ tin có date GTE 14/04
+- Giữ tin có date >= 14/04
 - Kết quả: 86 tin (loại bỏ 2 tin từ 13/04)
 
 ---
