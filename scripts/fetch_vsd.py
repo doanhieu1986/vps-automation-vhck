@@ -20,15 +20,32 @@ import re
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# ============================================================================
+# CONFIGURATION - Thay đổi giá trị này để điều chỉnh số ngày cần lấy
+# ============================================================================
+KEEP_DAYS = 2  # Số ngày gần nhất cần lấy (1=ngày mới nhất, 2=2 ngày, 3=3 ngày, ...)
+# ============================================================================
+
 logging.basicConfig(level=logging.INFO, format='%(message)s', stream=sys.stderr)
 logger = logging.getLogger(__name__)
 
 class VSDFetcher:
     def __init__(self):
+        """
+        Khởi tạo VSDFetcher
+
+        Số ngày cần lấy được điều chỉnh bằng hằng số KEEP_DAYS ở đầu file
+        """
         self.base_url = "https://www.vsd.vn"
         self.news_url = "https://www.vsd.vn/vi/tin-thi-truong-co-so"
+        self.session = requests.Session()
+        self.vptoken = None  # Token để AJAX POST phân trang
+        self.keep_days = KEEP_DAYS  # Số ngày gần nhất cần lấy (từ hằng số KEEP_DAYS)
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'vi-VN,vi;q=0.9',
+            'Connection': 'keep-alive',
         }
 
     def parse_date(self, date_string):
@@ -36,6 +53,24 @@ class VSDFetcher:
         try:
             return datetime.strptime(date_string, '%d/%m/%Y').date()
         except:
+            return None
+
+    def get_vptoken(self):
+        """Extract VPToken từ <meta name='__VPToken'> trên trang list"""
+        try:
+            response = self.session.get(self.news_url, headers=self.headers, timeout=10)
+            response.encoding = 'utf-8'
+            soup = BeautifulSoup(response.content, 'html.parser')
+            meta = soup.find('meta', {'name': '__VPToken'})
+            if meta and meta.get('content'):
+                self.vptoken = meta.get('content')
+                logger.info(f"✓ Got VPToken: {self.vptoken[:20]}...")
+                return self.vptoken
+            else:
+                logger.error("✗ VPToken not found in meta tag")
+                return None
+        except Exception as e:
+            logger.error(f"✗ Error getting VPToken: {str(e)}")
             return None
 
     def extract_field_from_text(self, text, field_label, max_length=500):
@@ -64,14 +99,15 @@ class VSDFetcher:
         <div class="col-md-4 item-info">Label:</div>
         <div class="col-md-8 item-info item-info-main">Value</div>
 
-        Trả về tuple (info_dict, extracted_code) nếu tìm được mã từ chi tiết
+        Trả về tuple (info_dict, extracted_code, actual_update_date) nếu tìm được mã từ chi tiết
+        actual_update_date là ngày "Cập nhật ngày" từ bài viết (chính xác hơn ngày listing)
         """
         try:
             # Retry logic để đảm bảo page load đầy đủ
             max_retries = 3
             response = None
             for attempt in range(max_retries):
-                response = requests.get(url, headers=self.headers, timeout=10)
+                response = self.session.get(url, headers=self.headers, timeout=10)
                 response.encoding = 'utf-8'
 
                 if response.status_code == 200:
@@ -81,14 +117,14 @@ class VSDFetcher:
                     time.sleep(0.2)  # Wait before retry
 
             if response is None or response.status_code != 200:
-                return None, None
+                return None, None, None
 
             soup = BeautifulSoup(response.content, 'html.parser')
 
             # Extract text content
             main = soup.find('main') or soup.find('article')
             if not main:
-                return None, None
+                return None, None, None
 
             text_content = main.get_text()
 
@@ -192,11 +228,20 @@ class VSDFetcher:
             if any(word in text_lower for word in ['chuyển đổi', 'hoán đổi']):
                 info['quyền_chuyển_đổi'] = 'Có'
 
-            return info, extracted_code
+            # Extract "Cập nhật ngày" từ bài viết (thay vì lấy từ listing page)
+            actual_update_date = None
+            # Pattern: "Cập nhật ngày DD/MM/YYYY" hoặc "Cập nhật ngày DD/MM/YYYY - HH:MM:SS"
+            update_match = re.search(r'Cập nhật ngày\s+(\d{1,2}/\d{1,2}/\d{4})', text_content)
+            if update_match:
+                date_str = update_match.group(1)
+                actual_update_date = self.parse_date(date_str)
+                logger.debug(f"  ✓ Found actual update date: {date_str}")
+
+            return info, extracted_code, actual_update_date
 
         except Exception as e:
             logger.debug(f"  ! Error extracting detail: {str(e)[:50]}")
-            return None, None
+            return None, None, None
 
     def fetch_latest_news(self):
         """
@@ -212,20 +257,40 @@ class VSDFetcher:
             all_news = []
             page = 1
             latest_date_found = None
-            max_pages = 25  # Limit ~375 items (25 pages × 15 items/page), dừng sớm khi date thay đổi
+            max_pages = 25  # Tối đa 10 trang, sẽ dừng sớm khi gặp tin cũ hơn 2 ngày
+
+            # Calculate cutoff date: today - 1 days
+            today = datetime.now().date()
+            cutoff_date = today - timedelta(days=2)
+            logger.info(f"  📅 Cutoff date (> 2 days old): {cutoff_date}")
 
             while page <= max_pages:
                 logger.info(f"  📄 Crawling page {page}...")
 
-                # Construct URL with page parameter
-                page_url = f"{self.news_url}?page={page}&tab=%23tab1"
-
                 try:
-                    response = requests.get(page_url, headers=self.headers, timeout=10)
+                    # Get VPToken từ trang đầu tiên nếu chưa có
+                    if page == 1:
+                        vptoken = self.get_vptoken()
+                        if not vptoken:
+                            logger.error("  ✗ Cannot get VPToken, stopping")
+                            break
+
+                    # Use AJAX POST with VPToken (correct method for VSD)
+                    ajax_headers = {
+                        'User-Agent': 'Mozilla/5.0',
+                        'Content-Type': 'application/json;charset=utf-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Referer': self.news_url,
+                        'Origin': self.base_url,
+                        '__VPToken': vptoken
+                    }
+                    payload = {'SearchKey': 'TCPH', 'CurrentPage': page}
+
+                    response = self.session.post(self.news_url, headers=ajax_headers, json=payload, timeout=10)
                     response.encoding = 'utf-8'
 
                     if response.status_code != 200:
-                        logger.info(f"  ⚠ Page {page} không tìm được (HTTP {response.status_code})")
+                        logger.info(f"  ⚠ Page {page} failed (HTTP {response.status_code})")
                         break
 
                     soup = BeautifulSoup(response.content, 'html.parser')
@@ -235,6 +300,7 @@ class VSDFetcher:
                     page_news = []
 
                     # Extract danh sách tin từ trang hiện tại
+                    logger.info(f"    📰 Total items on page: {len(news_items)}")
                     for item in news_items:
                         h3 = item.find('h3')
                         if not h3:
@@ -290,27 +356,41 @@ class VSDFetcher:
                         logger.info(f"  ⚠ Page {page} không có tin nào")
                         break
 
-                    # Xác định ngày gần nhất trên trang này
+                    # Log codes của trang này để check xem khác nhau không
+                    codes_on_page = [n['code'] for n in page_news]
+                    logger.info(f"    Codes: {codes_on_page[:5]}... ({len(codes_on_page)} items)")
+
+                    # Xác định ngày gần nhất và cũ nhất trên trang này
                     page_dates = [n['date_obj'] for n in page_news if n['date_obj']]
                     if not page_dates:
+                        logger.warning(f"    ⚠ No valid dates found on page {page}, skipping")
                         page += 1
                         continue
 
                     page_latest_date = max(page_dates)
+                    page_oldest_date = min(page_dates)
+
+                    # DEBUG: Log all unique dates on this page, sorted descending
+                    unique_dates = sorted(set(page_dates), reverse=True)
+                    logger.info(f"    📅 Unique dates on page {page}: {unique_dates}")
 
                     # Lần đầu tiên tìm thấy trang, set latest_date_found
                     if latest_date_found is None:
                         latest_date_found = page_latest_date
                         logger.info(f"  ✓ Ngày gần nhất tìm thấy: {latest_date_found}")
 
-                    # Nếu ngày trên trang này < ngày gần nhất, dừng crawl
-                    if page_latest_date < latest_date_found:
-                        logger.info(f"  ✓ Trang {page} có tin từ {page_latest_date} < {latest_date_found}, dừng crawl")
-                        break
+                    # DEBUG: Log thông tin ngày trên trang này với comparison
+                    logger.info(f"    📅 Page {page}: oldest={page_oldest_date}, latest={page_latest_date}, cutoff={cutoff_date}")
+                    logger.info(f"    📊 Comparison: {page_oldest_date} <= {cutoff_date}? {page_oldest_date <= cutoff_date}")
 
-                    # Thêm tin từ trang này vào danh sách
+                    # Thêm tin từ trang này vào danh sách trước
                     all_news.extend(page_news)
-                    logger.info(f"    Tìm thấy {len(page_news)} tin từ ngày {page_latest_date}")
+                    logger.info(f"    ✓ Thêm {len(page_news)} tin từ {page_oldest_date} đến {page_latest_date}")
+
+                    # KIỂM TRA: Nếu trang này có tin cách đây >= 2 ngày (oldest_date <= cutoff_date), dừng crawl
+                    if page_oldest_date <= cutoff_date:
+                        logger.info(f"  ⏹ Trang {page} có tin từ {page_oldest_date} <= {cutoff_date} (cách đây >= 2 ngày), DỪNG crawl")
+                        break
 
                     # Rate limiting: no delay between page requests (VSD allows fast crawl)
                     # time.sleep(0.1)
@@ -330,11 +410,13 @@ class VSDFetcher:
                     'message': 'Không tìm thấy tin trên VSD'
                 }
 
-            # Filter chỉ tin từ ngày gần nhất (tất cả records, không limit)
-            filtered_news = [n for n in all_news if n['date_obj'] == latest_date_found]
+            # Lọc tin để chỉ giữ N ngày gần nhất (self.keep_days)
+            # Công thức: min_keep_date = latest_date_found - (keep_days - 1) ngày
+            min_keep_date = latest_date_found - timedelta(days=self.keep_days - 1)
+            filtered_news = [n for n in all_news if n['date_obj'] and n['date_obj'] >= min_keep_date]
 
-            logger.info(f"  ✓ Tìm thấy {len(filtered_news)} tin từ ngày {latest_date_found} (crawled {page-1} pages)")
-            logger.info(f"  🔗 Extracting details từ tất cả records (concurrent, with retry)...")
+            logger.info(f"  ✓ Tìm thấy {len(filtered_news)} tin từ {min_keep_date} đến {latest_date_found} (crawled {page-1} pages, keeping {self.keep_days} day(s))")
+            logger.info(f"  🔗 Extracting details từ tất cả {len(filtered_news)} records (concurrent, with retry)...")
 
             # Extract chi tiết từ tin tức - concurrent với retry để ensure page load
             result_data = []
@@ -344,14 +426,19 @@ class VSDFetcher:
                 max_retries = 2
                 for attempt in range(max_retries):
                     try:
-                        detail, extracted_code = self.extract_detail_from_article(news['url'])
+                        detail, extracted_code, actual_update_date = self.extract_detail_from_article(news['url'])
                         final_code = extracted_code if extracted_code else news['code']
+
+                        # Ưu tiên dùng "Cập nhật ngày" từ bài viết, nếu không có thì dùng ngày listing
+                        final_date = actual_update_date if actual_update_date else news['date_obj']
+                        final_date_str = final_date.strftime('%d/%m/%Y') if final_date else news['date']
 
                         result_item = {
                             'code': final_code,
                             'title': news['title'],
                             'url': news['url'],
-                            'date': news['date'],
+                            'date': final_date_str,
+                            'collected_date': final_date_str,
                             'source': 'VSD'
                         }
 
@@ -364,12 +451,13 @@ class VSDFetcher:
                             time.sleep(0.3)
                         else:
                             logger.error(f"Failed {news['code']}: {str(e)[:30]}")
-                            # Return basic item on final failure
+                            # Return basic item on final failure (dùng ngày listing nếu không extract được)
                             return {
                                 'code': news['code'],
                                 'title': news['title'],
                                 'url': news['url'],
                                 'date': news['date'],
+                                'collected_date': news['date'],
                                 'source': 'VSD'
                             }
 
@@ -452,6 +540,7 @@ class VSDFetcher:
 
 def main():
     fetcher = VSDFetcher()
+    logger.info(f"Starting VSD fetch with KEEP_DAYS={KEEP_DAYS}")
     result = fetcher.fetch_latest_news()
 
     # Output JSON
