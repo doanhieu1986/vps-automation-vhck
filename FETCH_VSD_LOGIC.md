@@ -1,179 +1,181 @@
-# Fetch VSD - Logic va Flow Chi Tiet (v1)
+# Fetch VSD - Logic và Flow Chi Tiết (v1)
 
-## Tong quan
+## 📋 Tổng quan
 
-Script `fetch_vsd.py` la mot web scraper tu dong de thu thap thong tin quyen chung khoan tu VSD (Vietnamese Securities Depository). No crawl trang tin tuc thi truong co so, extract chi tiet tung tin, va luu vao Excel.
+Script `fetch_vsd.py` là một web scraper tự động để thu thập thông tin quyền chứng khoán từ VSD (Vietnamese Securities Depository). Nó crawl trang tin tức thị trường cơ sở, extract chi tiết từng tin, và lưu vào Excel.
 
-## Cau hinh chinh
+## 🔧 Cấu hình chính
 
 ```python
-KEEP_DAYS = 1  # So ngay gan nhat can lay (1, 2, 3, ...)
+KEEP_DAYS = 1  # Số ngày gần nhất cần lấy (1, 2, 3, ...)
 ```
 
-- **KEEP_DAYS=1**: Lay chi ngay moi nhat (2 tin tu 15/04)
-- **KEEP_DAYS=2**: Lay 2 ngay gan nhat (86 tin tu 14/04-15/04)
-- **KEEP_DAYS=3**: Lay 3 ngay gan nhat (88 tin tu 13/04-15/04)
+- **KEEP_DAYS=1**: Lấy chỉ ngày mới nhất (2 tin từ 15/04)
+- **KEEP_DAYS=2**: Lấy 2 ngày gần nhất (86 tin từ 14/04-15/04)
+- **KEEP_DAYS=3**: Lấy 3 ngày gần nhất (88 tin từ 13/04-15/04)
 
 ---
 
-## Luong xu ly chi tiet
+## 🔄 Luồng xử lý chi tiết
 
-### Flow Tong quan
+### Flow Tổng quan
 
 ```mermaid
 flowchart TD
-    A[Start] --> B[Khoi tao VSDFetcher<br/>Lay VPToken tu trang]
-    B --> C{VPToken<br/>ton tai}
-    C -->|Khong| D[Loi: Khong lay token]
-    C -->|Co| E[Bat dau crawl trang]
+    A["Start"] --> B["Khởi tạo VSDFetcher<br/>Lấy VPToken từ trang"]
+    B --> C{VPToken<br/>tồn tại?}
+    C -->|Không| D["Lỗi: Không lấy token"]
+    C -->|Có| E["Bắt đầu crawl trang"]
     
-    E --> F[Trang 1: AJAX POST<br/>SearchKey=TCPH Page=1]
-    F --> G[Parse HTML<br/>Tim tat ca items]
+    E --> F["Trang 1: AJAX POST<br/>SearchKey=TCPH Page=1"]
+    F --> G["Parse HTML<br/>Tìm tất cả items"]
     
-    G --> H[Extract tin tu trang<br/>- Ma CK<br/>- URL<br/>- Ngay tu div.time-news]
+    G --> H["Extract tin từ trang<br/>- Mã CK<br/>- URL<br/>- Ngày từ div.time-news"]
     
-    H --> I{Trang nay<br/>co tin}
-    I -->|Khong| J[Dung crawl]
-    I -->|Co| K[Tinh min max date]
+    H --> I{"Trang này<br/>có tin?"}
+    I -->|Không| J["Dừng crawl"]
+    I -->|Có| K["Tính min/max date"]
     
-    K --> L{Oldest date<br/>LTE cutoff_date<br/>2-3 ngay cu}
-    L -->|Co| M[Dung crawl<br/>Gap tin cu]
-    L -->|Khong| N[Trang tiep theo]
+    K --> L{"Oldest date<br/>LTE cutoff_date<br/>2-3 ngày cũ?"}
+    L -->|Có| M["Dừng crawl<br/>Gặp tin cũ"]
+    L -->|Không| N["Trang tiếp theo"]
     
-    N --> O{Trang LTE<br/>max_pages}
-    O -->|Co| P[Trang 2, 3, 4...]
+    N --> O{"Trang LTE<br/>max_pages?"}
+    O -->|Có| P["Trang 2, 3, 4..."]
     P --> F
-    O -->|Khong| M
+    O -->|Không| M
     
-    M --> Q[Loc tin theo KEEP_DAYS<br/>min_date = latest - keep_days+1]
+    M --> Q["Lọc tin theo KEEP_DAYS<br/>min_date = latest - keep_days+1"]
     
-    Q --> R[Extract chi tiet tung tin<br/>Concurrent 5 workers<br/>Retry 2 lan]
+    Q --> R["Extract chi tiết từng tin<br/>Concurrent 5 workers<br/>Retry 2 lần"]
     
-    R --> S[Parse HTML chi tiet<br/>Tim col-md-4 va col-md-8 pairs]
+    R --> S["Parse HTML chi tiết<br/>Tìm col-md-4/8 pairs"]
     
-    S --> T[Extract field<br/>- Ten to chuc<br/>- Ten chung khoan<br/>- Ma ISIN<br/>- Loai CK<br/>- Quyen lai goc]
+    S --> T["Extract field<br/>- Tên tổ chức<br/>- Tên chứng khoán<br/>- Mã ISIN<br/>- Loại CK<br/>- Quyền"]
     
-    T --> U[Merge voi records cu<br/>Tranh duplicate by code]
+    T --> U["Merge với records cũ<br/>Tránh duplicate"]
     
-    U --> V[Return JSON<br/>status count data pages_crawled]
-    V --> W[End]
+    U --> V["Return JSON<br/>status count data pages_crawled"]
+    V --> W["End"]
 ```
 
 ---
 
-## Chi tiet cac giai doan
+## 📊 Chi tiết các giai đoạn
 
-### 1. Giai doan Crawl Listing
+### 1️⃣ **Giai đoạn Crawl Listing (Thu thập danh sách tin)**
 
-#### Muc dich
-Crawl tung trang tin tuc de lay danh sach tin co ma chung khoan, dung khi gap tin cu hon 2 ngay.
+#### Mục đích
+Crawl từng trang tin tức để lấy danh sách tin có mã chứng khoán, dừng khi gặp tin cũ hơn 2 ngày.
 
 ```mermaid
 flowchart LR
-    A[Trang 1] -->|Items| B[Tim: ma CK<br/>14 items]
-    B --> C[Dates: 14/04 15/04<br/>oldest=14 latest=15]
-    C --> D{14 LTE cutoff}
-    D -->|Khong| E[Trang 2]
-    E -->|Items| F[Tim: ma CK<br/>15 items]
-    F --> G[Dates: 14/04<br/>oldest=14 latest=14]
-    G --> H{14 LTE cutoff}
-    H -->|Khong| I[Trang 3-5...]
-    I --> J[Trang 6]
-    J -->|Items| K[Dates: 13/04 14/04<br/>oldest=13 latest=14]
-    K --> L{13 LTE 13}
-    L -->|Co| M[DUNG crawl]
-    M --> N[All news: 88 items<br/>tu 13/04-15/04]
+    A["Trang 1"] -->|Items| B["Tìm: mã CK<br/>14 items"]
+    B --> C["Dates: 14/04, 15/04<br/>oldest=14, latest=15"]
+    C --> D{"14 LTE cutoff?"}
+    D -->|Không| E["Trang 2"]
+    E -->|Items| F["Tìm: mã CK<br/>15 items"]
+    F --> G["Dates: 14/04<br/>oldest=14, latest=14"]
+    G --> H{"14 LTE cutoff?"}
+    H -->|Không| I["Trang 3-5..."]
+    I --> J["Trang 6"]
+    J -->|Items| K["Dates: 13/04, 14/04<br/>oldest=13, latest=14"]
+    K --> L{"13 LTE 13?"}
+    L -->|Có| M["DỪNG crawl"]
+    M --> N["All news: 88 items<br/>từ 13/04-15/04"]
 ```
 
-**Logic dung crawl:**
+**Logic dừng crawl:**
 - `cutoff_date = today - 2 days = 13/04`
-- Khi tim thay `page_oldest_date LTE 13/04` --> **DUNG**
-- Vi da cham moc 2 ngay tuoi
+- Khi tìm thấy `page_oldest_date LTE 13/04` → **DỪNG**
+- Vì đã chạm mốc 2 ngày tuổi
 
-**Ket qua:** `all_news` = 88 tin tu cac trang 1-6
+**Kết quả:** `all_news` = 88 tin từ các trang 1-6
 
 ---
 
-### 2. Giai doan Filter (Loc theo KEEP_DAYS)
+### 2️⃣ **Giai đoạn Filter (Lọc theo KEEP_DAYS)**
 
-#### Muc dich
-Chi giu lai N ngay gan nhat tuy theo `KEEP_DAYS`
+#### Mục đích
+Chỉ giữ lại N ngày gần nhất tùy theo `KEEP_DAYS`
 
 ```mermaid
 flowchart TD
-    A[all_news: 88 items<br/>13/04-15/04] --> B[latest_date_found = 15/04]
-    B --> C{KEEP_DAYS<br/>value}
-    C -->|1| D[min_keep_date = 15/04 - 0 = 15/04]
-    C -->|2| E[min_keep_date = 15/04 - 1 = 14/04]
-    C -->|3| F[min_keep_date = 15/04 - 2 = 13/04]
+    A["all_news: 88 items<br/>13/04-15/04"] --> B["latest_date_found = 15/04"]
+    B --> C{"KEEP_DAYS<br/>value?"}
+    C -->|1| D["min_keep_date = 15/04 - 0 = 15/04"]
+    C -->|2| E["min_keep_date = 15/04 - 1 = 14/04"]
+    C -->|3| F["min_keep_date = 15/04 - 2 = 13/04"]
     
-    D --> G[Filter: date GTE 15/04]
-    E --> H[Filter: date GTE 14/04]
-    F --> I[Filter: date GTE 13/04]
+    D --> G["Filter: date GTE 15/04"]
+    E --> H["Filter: date GTE 14/04"]
+    F --> I["Filter: date GTE 13/04"]
     
-    G --> J[filtered_news: 2 tin<br/>chi 15/04]
-    H --> K[filtered_news: 86 tin<br/>14/04-15/04]
-    I --> L[filtered_news: 88 tin<br/>13/04-15/04]
+    G --> J["filtered_news: 2 tin<br/>chỉ 15/04"]
+    H --> K["filtered_news: 86 tin<br/>14/04-15/04"]
+    I --> L["filtered_news: 88 tin<br/>13/04-15/04"]
     
-    J --> M[Di toi giai doan 3]
+    J --> M["Đi tới giai đoạn 3"]
     K --> M
     L --> M
 ```
 
-**Cong thuc loc:**
+**Công thức lọc:**
 ```python
 min_keep_date = latest_date_found - timedelta(days=KEEP_DAYS - 1)
 filtered_news = [n for n in all_news if n['date_obj'] >= min_keep_date]
 ```
 
-**Vi du voi KEEP_DAYS=2:**
+**Ví dụ với KEEP_DAYS=2:**
 - `min_keep_date = 15/04 - (2-1) = 14/04`
-- Giu tin co date >= 14/04
-- Ket qua: 86 tin (loai bo 2 tin tu 13/04)
+- Giữ tin có date GTE 14/04
+- Kết quả: 86 tin (loại bỏ 2 tin từ 13/04)
 
 ---
 
-### 3. Giai doan Extract (Trich xuat chi tiet)
+### 3️⃣ **Giai đoạn Extract (Trích xuất chi tiết)**
 
-#### Muc dich
-Mo tung URL tin tuc, parse HTML, va extract thong tin chi tiet
+#### Mục đích
+Mở từng URL tin tức, parse HTML, và extract thông tin chi tiết
 
 ```mermaid
 flowchart TD
-    A[filtered_news: N tin<br/>URLs can mo] --> B[ThreadPoolExecutor<br/>5 workers]
-    B --> C[Mo URL 1]
-    B --> D[Mo URL 2]
-    B --> E[Mo URL N]
+    A["filtered_news: N tin<br/>URLs cần mở"] --> B["ThreadPoolExecutor<br/>5 workers"]
+    B --> C["Mở URL 1"]
+    B --> D["Mở URL 2"]
+    B --> E["..."]
+    B --> F["Mở URL N"]
     
-    C --> G[Parse HTML<br/>Tim main article]
+    C --> G["Parse HTML<br/>Tìm main/article"]
     D --> G
     E --> G
+    F --> G
     
-    G --> H[Tim col-md-4 divs<br/>=labels]
-    H --> I[Moi label tim<br/>col-md-8 dat sau = value]
+    G --> H["Tìm col-md-4 divs<br/>equals labels"]
+    H --> I["Mỗi label tìm<br/>col-md-8 đặt sau = value"]
     
-    I --> J[Map label to field]
+    I --> J["Map label to field"]
     
-    J --> K[Ten to chuc dang ky<br/>Ten chung khoan<br/>Ma ISIN<br/>Loai CK<br/>Ngay dang ky<br/>...]
+    J --> K["Tên tổ chức đăng ký<br/>Tên chứng khoán<br/>Mã ISIN<br/>Loại CK<br/>Ngày đăng ký"]
     
-    K --> L[Tim Cap nhat ngay<br/>tu text content]
+    K --> L["Tìm Cap nhat ngay<br/>từ text content"]
     
-    L --> M[Return:<br/>detail_dict<br/>extracted_code<br/>actual_update_date]
+    L --> M["Return:<br/>detail_dict<br/>extracted_code<br/>actual_update_date"]
 ```
 
-**Cau truc HTML muc tieu:**
+**Cấu trúc HTML mục tiêu:**
 ```html
-<div class="col-md-4">Ten to chuc dang ky:</div>
-<div class="col-md-8">Cong ty ABC</div>
+<div class="col-md-4">Tên tổ chức đăng ký:</div>
+<div class="col-md-8">Công ty ABC</div>
 
-<div class="col-md-4">Ma ISIN:</div>
+<div class="col-md-4">Mã ISIN:</div>
 <div class="col-md-8">VN0ABC123456</div>
 ```
 
-**Fallback (neu khong tim tu structure):**
-- Dung regex tim tu text content
-- Pattern: `"Ty le thuc hien[:\s]+(....)"`
-- Ho tro multi-line va bullet points
+**Fallback (nếu không tìm từ structure):**
+- Dùng regex tìm từ text content
+- Pattern: `"Tỷ lệ thực hiện[:\s]+(....)"`
+- Hỗ trợ multi-line và bullet points
 
 **Concurrent Processing:**
 ```python
@@ -186,30 +188,30 @@ with ThreadPoolExecutor(max_workers=5) as executor:
 
 ---
 
-### 4. Giai doan Merge (Hop nhat du lieu)
+### 4️⃣ **Giai đoạn Merge (Hợp nhất dữ liệu)**
 
-#### Muc dich
-Hop nhat tin moi crawl voi tin cu, tranh duplicate
+#### Mục đích
+Hợp nhất tin mới crawl với tin cũ, tránh duplicate
 
 ```mermaid
 flowchart TD
-    A[result_data: N tin moi<br/>tu crawl] --> B[Ton tai<br/>vsd_records.json]
-    B -->|Khong| C[merged_data = result_data]
-    B -->|Co| D[Tai existing_records]
+    A["result_data: N tin mới<br/>từ crawl"] --> B["Tồn tại<br/>vsd_records.json?"]
+    B -->|Không| C["merged_data = result_data"]
+    B -->|Có| D["Tải existing_records"]
     
-    D --> E[Tao map: code to record<br/>tu result_data]
+    D --> E["Tạo map: code to record<br/>từ result_data"]
     
-    E --> F[Loop existing_records]
+    E --> F["Loop existing_records"]
     
-    F --> G{Code nao<br/>trung}
+    F --> G{"Code nào<br/>trùng?"}
     
-    G -->|Khong| H[Them vao merged_data]
-    G -->|Co| I[Replace bang version moi]
+    G -->|Không| H["Thêm vào merged_data"]
+    G -->|Có| I["Replace bằng version mới"]
     
-    H --> J[merged_data = result + existing]
+    H --> J["merged_data = result + existing"]
     I --> J
     
-    J --> K[Log: N new + M existing = Total]
+    J --> K["Log: N new + M existing = Total"]
 ```
 
 **Logic:**
@@ -220,12 +222,12 @@ for existing_record in existing_records:
     if existing_record['code'] not in new_codes:
         merged_data.append(existing_record)
     else:
-        # Replace voi version moi
+        # Replace với version mới
 ```
 
 ---
 
-## Du lieu dau ra
+## 📝 Dữ liệu đầu ra
 
 ### JSON Structure
 ```json
@@ -235,24 +237,24 @@ for existing_record in existing_records:
   "data": [
     {
       "code": "TV2",
-      "title": "TV2: chuyen quyen so huu...",
+      "title": "TV2: chuyển quyền sở hữu...",
       "url": "https://www.vsd.vn/vi/ad/194607",
       "date": "15/04/2026",
       "collected_date": "15/04/2026",
       "source": "VSD",
-      "ten_to_chuc_dang_ky": "...",
-      "ten_chung_khoan": "...",
-      "ma_isin": "...",
-      "noi_giao_dich": "...",
-      "loai_chung_khoan": "...",
-      "ngay_dang_ky_cuoi": "...",
-      "ly_do_muc_dich": "...",
-      "ty_le_thuc_hien": "...",
-      "thoi_gian_thuc_hien": "...",
-      "dia_diem_thuc_hien": "...",
-      "quyen_nhan_lai": "Co",
-      "quyen_tra_goc": null,
-      "quyen_chuyen_doi": null
+      "tên_tổ_chức_đăng_ký": "...",
+      "tên_chứng_khoán": "...",
+      "mã_isin": "...",
+      "nơi_giao_dịch": "...",
+      "loại_chứng_khoán": "...",
+      "ngày_đăng_ký_cuối": "...",
+      "lý_do_mục_đích": "...",
+      "tỷ_lệ_thực_hiện": "...",
+      "thời_gian_thực_hiện": "...",
+      "địa_điểm_thực_hiện": "...",
+      "quyền_nhận_lãi": "Có",
+      "quyền_trả_gốc": null,
+      "quyền_chuyển_đổi": null
     }
   ],
   "count": 88,
@@ -264,12 +266,12 @@ for existing_record in existing_records:
 
 ---
 
-## Cơ che bao ve & Retry
+## 🔐 Cơ chế bảo vệ & Retry
 
 ### Token Management (VPToken)
-- Lay tu `<meta name="__VPToken">` tren trang list
-- Dung cho moi AJAX POST request phan trang
-- Neu khong tim duoc -> Stop crawl
+- Lấy từ `<meta name="__VPToken">` trên trang list
+- Dùng cho mỗi AJAX POST request phân trang
+- Nếu không tìm được → Stop crawl
 
 ### Retry Logic
 ```python
@@ -283,50 +285,50 @@ for attempt in range(max_retries):
 ```
 
 ### Error Handling
-- Loi HTTP -> Log warning, dung crawl trang do
-- Loi parse -> Return (None, None, None) tu extract
-- Loi merge -> Fallback: dung chi new data
+- Lỗi HTTP → Log warning, dừng crawl trang đó
+- Lỗi parse → Return (None, None, None) từ extract
+- Lỗi merge → Fallback: dùng chỉ new data
 
 ---
 
-## Performance
+## 📈 Performance
 
 ### Concurrent Request
-- Listing crawl: Sequential (AJAX POST page by page)
-- Detail extraction: Concurrent (ThreadPoolExecutor, 5 workers)
-- Timing: 2-3 phut cho 80+ tin
+- **Listing crawl:** Sequential (AJAX POST page by page)
+- **Detail extraction:** Concurrent (ThreadPoolExecutor, 5 workers)
+- **Timing:** 2-3 phút cho 80+ tin
 
 ### Memory
-- Stream processing (khong load toan bo HTML vao RAM)
-- JSON output co the to (2-3 MB cho 88 records)
+- Stream processing (không load toàn bộ HTML vào RAM)
+- JSON output có thể to (2-3 MB cho 88 records)
 
 ---
 
-## Tuy chinh de dang
+## 🎛️ Tùy chỉnh dễ dàng
 
-| Tham so | Vi tri | Y nghia | Gia tri mac dinh |
+| Tham số | Vị trí | Ý nghĩa | Giá trị mặc định |
 |---|---|---|---|
-| `KEEP_DAYS` | Dong 26 | So ngay can lay | `1` |
-| `max_retries` | Line 107 425 | So lan thu lai | `3` `2` |
+| `KEEP_DAYS` | Dòng 26 | Số ngày cần lấy | `1` |
+| `max_retries` | Line 107, 425 | Số lần thử lại | `3`, `2` |
 | `max_workers` | Line 465 | Thread pool size | `5` |
-| `cutoff_date` | Line 264 | Dung khi cu hon N ngay | `today - 2 days` |
-| `max_pages` | Line 256 | Toi da trang crawl | `25` |
+| `cutoff_date` | Line 264 | Dừng khi cũ hơn N ngày | `today - 2 days` |
+| `max_pages` | Line 256 | Tối đa trang crawl | `25` |
 
 ---
 
-## Checklist truoc khi dung
+## ✅ Checklist trước khi dùng
 
-- [ ] Kiem tra `KEEP_DAYS` co gia tri mong muon (1, 2, 3...)
-- [ ] VSD website van co cau truc HTML tuong tu
-- [ ] Ket noi internet on dinh
-- [ ] BeautifulSoup4, requests library da cai
-- [ ] Output path `/app/vps-automation-vhck/data/` ton tai
+- [ ] Kiểm tra `KEEP_DAYS` có giá trị mong muốn (1, 2, 3...)
+- [ ] VSD website vẫn có cấu trúc HTML tương tự
+- [ ] Kết nối internet ổn định
+- [ ] BeautifulSoup4, requests library đã cài
+- [ ] Output path `/app/vps-automation-vhck/data/` tồn tại
 
 ---
 
-## Tham khao
+## 📚 Tham khảo
 
 - **VSD URL:** https://www.vsd.vn/vi/tin-thi-truong-co-so
-- **Pagination method:** AJAX POST (khong phai GET ?page=X)
+- **Pagination method:** AJAX POST (không phải GET ?page=X)
 - **Charset:** UTF-8
-- **Date format:** DD/MM/YYYY tu VSD
+- **Date format:** DD/MM/YYYY từ VSD
