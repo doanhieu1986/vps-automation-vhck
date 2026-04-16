@@ -175,7 +175,27 @@ class VSDFetcher:
             if not main:
                 return None, None, None
 
+            # Lấy chỉ nội dung chính của article, không lấy phần "Tin cùng tổ chức" hoặc bảng thống kê phía dưới
             text_content = main.get_text()
+
+            # Tìm điểm kết thúc của nội dung chính (phần "Tin cùng tổ chức" hoặc các phần khác)
+            cutoff_markers = [
+                'tin cùng tổ chức',
+                'mã ck hủy đăng ký',
+                'mã ck chuyển sàn',
+                'thành viên đã thu hồi'
+            ]
+
+            # Cắt text tại marker đầu tiên tìm thấy
+            min_cutoff = len(text_content)
+            for marker in cutoff_markers:
+                pos = text_content.lower().find(marker)
+                if pos > 0:
+                    min_cutoff = min(min_cutoff, pos)
+
+            # Nếu tìm thấy marker, chỉ lấy text trước đó
+            if min_cutoff < len(text_content):
+                text_content = text_content[:min_cutoff]
 
             # Initialize info với tất cả fields cần thiết
             info = {
@@ -278,6 +298,7 @@ class VSDFetcher:
             # 1. Quyền họp đại hội cổ đông
             dhdc_map = {
                 'Quyền đại hội cổ đông thường niên': [
+                    'đại hội đồng cổ đông thường niên',
                     'đại hội cổ đông thường niên',
                     'đại hội thường niên',
                     'đhđcđ thường niên',
@@ -290,6 +311,7 @@ class VSDFetcher:
                     'written opinion'
                 ],
                 'Quyền đại hội cổ đông bất thường': [
+                    'đại hội đồng cổ đông bất thường',
                     'đại hội cổ đông bất thường',
                     'đại hội bất thường',
                     'egm',
@@ -404,7 +426,7 @@ class VSDFetcher:
                     'hủy danh sách',
                     'cancel list'
                 ],
-                'Hủy dăng ký chứng khoán, trái phiếu': [
+                'Hủy đăng ký chứng khoán, trái phiếu': [
                     'hủy đăng ký',
                     'huỷ',
                     'delisting',
