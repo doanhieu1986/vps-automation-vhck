@@ -20,10 +20,18 @@ import re
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+try:
+    import pandas as pd
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    EXCEL_AVAILABLE = True
+except ImportError:
+    EXCEL_AVAILABLE = False
+
 # ============================================================================
 # CONFIGURATION - Thay đổi giá trị này để điều chỉnh số ngày cần lấy
 # ============================================================================
-KEEP_DAYS = 1  # Số ngày gần nhất cần lấy (1=ngày mới nhất, 2=2 ngày, 3=3 ngày, ...)
+KEEP_DAYS = 7  # Số ngày gần nhất cần lấy (1=ngày mới nhất, 2=2 ngày, 3=3 ngày, ...)
 # ============================================================================
 
 logging.basicConfig(level=logging.INFO, format='%(message)s', stream=sys.stderr)
@@ -93,6 +101,23 @@ class VSDFetcher:
             return extracted if extracted else None
         return None
 
+    def contains_keyword(self, text, keywords):
+        """
+        Check if text contains any of the keywords (case-insensitive)
+
+        Args:
+            text: Text content to search in
+            keywords: List of keywords to search for
+
+        Returns:
+            True if any keyword is found, False otherwise
+        """
+        text_lower = text.lower()
+        for keyword in keywords:
+            if keyword.lower() in text_lower:
+                return True
+        return False
+
     def extract_detail_from_article(self, url):
         """
         Mở URL tin tức và extract chi tiết thông tin từ HTML structure:
@@ -140,9 +165,16 @@ class VSDFetcher:
                 'tỷ_lệ_thực_hiện': None,
                 'thời_gian_thực_hiện': None,
                 'địa_điểm_thực_hiện': None,
-                'quyền_nhận_lãi': None,
-                'quyền_trả_gốc': None,
-                'quyền_chuyển_đổi': None
+                # 9 cột quyền mới
+                'quyền_họp_đại_hội_cổ_đông': None,
+                'quyền_cổ_tức_tiền': None,
+                'quyền_cổ_tức_cổ_phiếu': None,
+                'quyền_mua': None,
+                'quyền_hoán_đổi_chuyển_đổi': None,
+                'chứng_quyền': None,
+                'chấp_thuận_đăng_ký': None,
+                'tin_húy': None,
+                'thay_đổi': None
             }
 
             extracted_code = None
@@ -216,17 +248,42 @@ class VSDFetcher:
                     max_length=300
                 )
 
-            # Find quyền from text content
-            text_lower = text_content.lower()
+            # Extract 9 new quyền fields từ text content
+            # 1. Quyền họp đại hội cổ đông
+            if self.contains_keyword(text_content, ['đại hội cổ đông', 'phiếu bầu', 'bỏ phiếu', 'quyền biểu quyết']):
+                info['quyền_họp_đại_hội_cổ_đông'] = 'Có quyền'
 
-            if any(word in text_lower for word in ['nhận lãi', 'lãi định kỳ', 'thanh toán lãi']):
-                info['quyền_nhận_lãi'] = 'Có'
+            # 2. Quyền cổ tức tiền
+            if self.contains_keyword(text_content, ['cổ tức tiền', 'lãi định kỳ', 'tiền lãi']):
+                info['quyền_cổ_tức_tiền'] = 'Có quyền'
 
-            if any(word in text_lower for word in ['trả gốc', 'đáo hạn', 'thanh toán gốc']):
-                info['quyền_trả_gốc'] = 'Có'
+            # 3. Quyền cổ tức cổ phiếu
+            if self.contains_keyword(text_content, ['cổ tức cổ phiếu', 'cổ phiếu thưởng', 'bonus share']):
+                info['quyền_cổ_tức_cổ_phiếu'] = 'Có quyền'
 
-            if any(word in text_lower for word in ['chuyển đổi', 'hoán đổi']):
-                info['quyền_chuyển_đổi'] = 'Có'
+            # 4. Quyền mua
+            if self.contains_keyword(text_content, ['quyền mua', 'right issue', 'phát hành thêm', 'pre-emptive right']):
+                info['quyền_mua'] = 'Có quyền'
+
+            # 5. Quyền hoán đổi, chuyển đổi
+            if self.contains_keyword(text_content, ['chuyển đổi', 'hoán đổi', 'convertible', 'swap']):
+                info['quyền_hoán_đổi_chuyển_đổi'] = 'Có quyền'
+
+            # 6. Chứng quyền
+            if self.contains_keyword(text_content, ['chứng quyền', 'warrant', 'call warrant', 'put warrant']):
+                info['chứng_quyền'] = 'Có'
+
+            # 7. Chấp thuận đăng ký
+            if self.contains_keyword(text_content, ['chấp thuận đăng ký', 'phê duyệt đăng ký', 'approval']):
+                info['chấp_thuận_đăng_ký'] = 'Được chấp thuận'
+
+            # 8. Tin húy
+            if self.contains_keyword(text_content, ['hủy', 'huỷ', 'cancellation', 'terminate']):
+                info['tin_húy'] = 'Có'
+
+            # 9. Thay đổi
+            if self.contains_keyword(text_content, ['thay đổi', 'tách cổ phiếu', 'gộp cổ phiếu', 'đổi tên', 'thay đổi mệnh giá']):
+                info['thay_đổi'] = 'Có thay đổi'
 
             # Extract "Cập nhật ngày" từ bài viết (thay vì lấy từ listing page)
             actual_update_date = None
@@ -261,8 +318,8 @@ class VSDFetcher:
 
             # Calculate cutoff date: today - 1 days
             today = datetime.now().date()
-            cutoff_date = today - timedelta(days=2)
-            logger.info(f"  📅 Cutoff date (> 2 days old): {cutoff_date}")
+            cutoff_date = today - timedelta(days=7)
+            logger.info(f"  📅 Cutoff date (> 7 days old): {cutoff_date}")
 
             while page <= max_pages:
                 logger.info(f"  📄 Crawling page {page}...")
@@ -538,10 +595,204 @@ class VSDFetcher:
                 'message': str(e)
             }
 
+    def save_to_excel(self, data, output_path):
+        """
+        Tạo hoặc update file Excel từ dữ liệu records
+        - Nếu file đã tồn tại: chỉ thêm records mới (code chưa có trong file cũ)
+        - Nếu file chưa tồn tại: tạo file mới với tất cả records
+
+        Args:
+            data: Result dict từ fetch_latest_news() chứa 'data' key với danh sách records
+            output_path: Đường dẫn output file Excel
+
+        Returns:
+            Dict với status, message, và file info
+        """
+        if not EXCEL_AVAILABLE:
+            return {
+                'status': 'error',
+                'message': 'pandas hoặc openpyxl chưa được cài đặt'
+            }
+
+        try:
+            new_records = data.get('data', [])
+
+            if not new_records:
+                return {
+                    'status': 'error',
+                    'message': 'Không có dữ liệu để export'
+                }
+
+            # Ensure output directory exists
+            output_dir = os.path.dirname(output_path)
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir, exist_ok=True)
+
+            # Kiểm tra file cũ có tồn tại không
+            existing_codes = set()
+            final_records = list(new_records)  # Start with new records
+            new_count = len(new_records)
+
+            if os.path.exists(output_path):
+                try:
+                    # Đọc file cũ
+                    df_old = pd.read_excel(output_path, sheet_name='Tin chứng khoán')
+                    existing_codes = set(df_old['code'].astype(str).tolist() if 'code' in df_old.columns else [])
+                    logger.info(f"  📚 Found {len(existing_codes)} existing codes in file")
+
+                    # Tìm những records cũ không có trong new records
+                    new_codes = {r['code'] for r in new_records}
+                    for idx, row in df_old.iterrows():
+                        old_code = str(row.get('code', ''))
+                        if old_code and old_code not in new_codes:
+                            # Thêm record cũ này nếu không trùng với code mới
+                            old_record = row.to_dict()
+                            final_records.append(old_record)
+
+                    logger.info(f"  ✓ Merged: {new_count} new + {len(existing_codes) - len(new_codes & existing_codes)} kept = {len(final_records)} total")
+
+                except Exception as e:
+                    logger.warning(f"  ⚠ Could not read existing file: {str(e)[:50]}, will create new file")
+                    # Fallback: just use new records
+
+            # Create DataFrame từ final records
+            df = pd.DataFrame(final_records)
+
+            # Viết Excel file
+            with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+                df.to_excel(
+                    writer,
+                    sheet_name='Tin chứng khoán',
+                    index=False,
+                    startrow=0
+                )
+
+                # Format Excel
+                workbook = writer.book
+                worksheet = writer.sheets['Tin chứng khoán']
+
+                # Auto-adjust column widths
+                for column in worksheet.columns:
+                    max_length = 0
+                    column_letter = column[0].column_letter
+
+                    for cell in column:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                        except:
+                            pass
+
+                    adjusted_width = min(max_length + 2, 50)
+                    worksheet.column_dimensions[column_letter].width = adjusted_width
+
+            # Check file was created
+            if os.path.exists(output_path):
+                file_size = os.path.getsize(output_path)
+                merge_msg = f' (merged: {new_count} new + {len(final_records) - new_count} kept)' if len(final_records) > new_count else ''
+                logger.info(f"✓ Excel file updated: {output_path} ({file_size} bytes)")
+                return {
+                    'status': 'success',
+                    'message': f'Excel file saved with {len(final_records)} total records{merge_msg}',
+                    'file': output_path,
+                    'file_size': file_size,
+                    'new_records': new_count,
+                    'total_records': len(final_records),
+                    'timestamp': datetime.now().isoformat()
+                }
+            else:
+                return {
+                    'status': 'error',
+                    'message': 'Excel file was not created'
+                }
+
+        except Exception as e:
+            logger.error(f"✗ Error creating Excel: {str(e)}")
+            return {
+                'status': 'error',
+                'message': f'Error creating Excel: {str(e)}'
+            }
+
 def main():
     fetcher = VSDFetcher()
     logger.info(f"Starting VSD fetch with KEEP_DAYS={KEEP_DAYS}")
     result = fetcher.fetch_latest_news()
+
+    # Tạo Excel file nếu fetch thành công
+    if result.get('status') == 'success' and result.get('data'):
+        # Tìm path output (ưu tiên /app/ cho Docker, fallback sang local path)
+        possible_paths = [
+            '/app/vps-automation-vhck/data/vsd_records.xlsx',
+            '/Users/hieudt/vps-automation-vhck/data/vsd_records.xlsx'
+        ]
+        excel_output_path = None
+        for path in possible_paths:
+            try:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                excel_output_path = path
+                break
+            except:
+                continue
+
+        if excel_output_path:
+            excel_result = fetcher.save_to_excel(result, excel_output_path)
+            # Thêm info về Excel vào result
+            result['excel_info'] = excel_result
+
+        # Lưu kết quả vào JSON file để đồng bộ với HTML report
+        json_output_paths = [
+            '/app/vps-automation-vhck/data/vsd_records.json',
+            '/Users/hieudt/vps-automation-vhck/data/vsd_records.json'
+        ]
+        json_output_path = None
+        for path in json_output_paths:
+            try:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                json_output_path = path
+                break
+            except:
+                continue
+
+        if json_output_path:
+            try:
+                # Chuẩn bị dữ liệu cho HTML: gắn status field
+                records_for_html = []
+                for record in result.get('data', []):
+                    html_record = dict(record)
+                    if 'status' not in html_record:
+                        html_record['status'] = 'pending'
+                    if 'confirmation_status' not in html_record:
+                        html_record['confirmation_status'] = 'awaiting_review'
+                    records_for_html.append(html_record)
+
+                # Tạo JSON output cho HTML
+                json_output = {
+                    'status': result.get('status'),
+                    'date': result.get('date'),
+                    'records': records_for_html,
+                    'total_records': len(records_for_html),
+                    'count': result.get('count'),
+                    'url': result.get('url'),
+                    'pages_crawled': result.get('pages_crawled'),
+                    'fetched_at': result.get('fetched_at'),
+                    'merge_info': result.get('merge_info')
+                }
+
+                with open(json_output_path, 'w', encoding='utf-8') as f:
+                    json.dump(json_output, f, ensure_ascii=False, indent=2)
+
+                logger.info(f"✓ JSON file saved: {json_output_path}")
+                result['json_info'] = {
+                    'status': 'success',
+                    'file': json_output_path,
+                    'records_count': len(records_for_html)
+                }
+            except Exception as e:
+                logger.error(f"✗ Error saving JSON: {str(e)}")
+                result['json_info'] = {
+                    'status': 'error',
+                    'message': f'Error saving JSON: {str(e)}'
+                }
 
     # Output JSON
     print(json.dumps(result, ensure_ascii=False, indent=2))

@@ -676,16 +676,40 @@
                     <div class="section-title">Quyền và Lợi Ích</div>
                     <div class="detail-grid">
                         <div class="detail-item">
-                            <div class="detail-label">Quyền Nhận Lãi</div>
-                            <div class="detail-value" id="detailRightInterest">--</div>
+                            <div class="detail-label">Quyền Họp Đại Hội Cổ Đông</div>
+                            <div class="detail-value" id="detailRightShMeeting">--</div>
                         </div>
                         <div class="detail-item">
-                            <div class="detail-label">Quyền Trả Gốc</div>
-                            <div class="detail-value" id="detailRightPrincipal">--</div>
+                            <div class="detail-label">Quyền Cổ Tức Tiền</div>
+                            <div class="detail-value" id="detailRightDividendCash">--</div>
                         </div>
                         <div class="detail-item">
-                            <div class="detail-label">Quyền Chuyển Đổi</div>
-                            <div class="detail-value" id="detailRightConversion">--</div>
+                            <div class="detail-label">Quyền Cổ Tức Cổ Phiếu</div>
+                            <div class="detail-value" id="detailRightDividendShare">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Quyền Mua</div>
+                            <div class="detail-value" id="detailRightPurchase">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Quyền Hoán Đổi / Chuyển Đổi</div>
+                            <div class="detail-value" id="detailRightSwapConversion">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Chứng Quyền</div>
+                            <div class="detail-value" id="detailWarrant">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Chấp Thuận Đăng Ký</div>
+                            <div class="detail-value" id="detailRegistrationApproval">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Tin Hủy</div>
+                            <div class="detail-value" id="detailCancellation">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Thay Đổi</div>
+                            <div class="detail-value" id="detailChange">--</div>
                         </div>
                     </div>
                     <div style="margin-top: 15px;">
@@ -853,9 +877,15 @@
             document.getElementById('detailRegDate').textContent = escapeHtml(selectedRecord.ngày_đăng_ký_cuối || '--');
             document.getElementById('detailTime').textContent = escapeHtml(selectedRecord.thời_gian_thực_hiện || '--');
             document.getElementById('detailLocation').textContent = escapeHtml(selectedRecord.địa_điểm_thực_hiện || '--');
-            document.getElementById('detailRightInterest').textContent = escapeHtml(selectedRecord.quyền_nhận_lãi || '--');
-            document.getElementById('detailRightPrincipal').textContent = escapeHtml(selectedRecord.quyền_trả_gốc || '--');
-            document.getElementById('detailRightConversion').textContent = escapeHtml(selectedRecord.quyền_chuyển_đổi || '--');
+            document.getElementById('detailRightShMeeting').textContent = escapeHtml(selectedRecord.quyền_họp_đại_hội_cổ_đông || '--');
+            document.getElementById('detailRightDividendCash').textContent = escapeHtml(selectedRecord.quyền_cổ_tức_tiền || '--');
+            document.getElementById('detailRightDividendShare').textContent = escapeHtml(selectedRecord.quyền_cổ_tức_cổ_phiếu || '--');
+            document.getElementById('detailRightPurchase').textContent = escapeHtml(selectedRecord.quyền_mua || '--');
+            document.getElementById('detailRightSwapConversion').textContent = escapeHtml(selectedRecord.quyền_hoán_đổi_chuyển_đổi || '--');
+            document.getElementById('detailWarrant').textContent = escapeHtml(selectedRecord.chứng_quyền || '--');
+            document.getElementById('detailRegistrationApproval').textContent = escapeHtml(selectedRecord.chấp_thuận_đăng_ký || '--');
+            document.getElementById('detailCancellation').textContent = escapeHtml(selectedRecord.tin_húy || '--');
+            document.getElementById('detailChange').textContent = escapeHtml(selectedRecord.thay_đổi || '--');
             document.getElementById('detailPurpose').textContent = escapeHtml(selectedRecord.lý_do_mục_đích || '--');
             document.getElementById('detailRatio').textContent = escapeHtml(selectedRecord.tỷ_lệ_thực_hiện || '--');
 
