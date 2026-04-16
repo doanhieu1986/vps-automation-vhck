@@ -118,6 +118,30 @@ class VSDFetcher:
                 return True
         return False
 
+    def extract_quyền_values(self, text, value_keywords_map):
+        """
+        Extract specific quyền values from text using keyword mapping
+
+        Args:
+            text: Text content to search in
+            value_keywords_map: Dict with {value: [keywords]} structure
+                e.g., {'Quyền đại hội cổ đông thường niên': ['đại hội thường niên', 'ĐHĐCĐ thường']}
+
+        Returns:
+            Comma-separated string of found values, or None if none found
+        """
+        text_lower = text.lower()
+        found_values = []
+
+        for value, keywords in value_keywords_map.items():
+            for keyword in keywords:
+                if keyword.lower() in text_lower:
+                    if value not in found_values:
+                        found_values.append(value)
+                    break
+
+        return ', '.join(found_values) if found_values else None
+
     def extract_detail_from_article(self, url):
         """
         Mở URL tin tức và extract chi tiết thông tin từ HTML structure:
@@ -248,42 +272,162 @@ class VSDFetcher:
                     max_length=300
                 )
 
-            # Extract 9 new quyền fields từ text content
+            # Extract 9 new quyền fields từ text content với các giá trị cụ thể
+            # Sử dụng keyword mapping để tìm các giá trị cụ thể trong text
+
             # 1. Quyền họp đại hội cổ đông
-            if self.contains_keyword(text_content, ['đại hội cổ đông', 'phiếu bầu', 'bỏ phiếu', 'quyền biểu quyết']):
-                info['quyền_họp_đại_hội_cổ_đông'] = 'Có quyền'
+            dhdc_map = {
+                'Quyền đại hội cổ đông thường niên': [
+                    'đại hội cổ đông thường niên',
+                    'đại hội thường niên',
+                    'đhđcđ thường niên',
+                    'agm',
+                    'annual general meeting'
+                ],
+                'Quyền lấy ý kiến cổ đông bằng văn bản': [
+                    'lấy ý kiến cổ đông bằng văn bản',
+                    'ý kiến bằng văn bản',
+                    'written opinion'
+                ],
+                'Quyền đại hội cổ đông bất thường': [
+                    'đại hội cổ đông bất thường',
+                    'đại hội bất thường',
+                    'egm',
+                    'extraordinary general meeting'
+                ]
+            }
+            info['quyền_họp_đại_hội_cổ_đông'] = self.extract_quyền_values(text_content, dhdc_map)
 
             # 2. Quyền cổ tức tiền
-            if self.contains_keyword(text_content, ['cổ tức tiền', 'lãi định kỳ', 'tiền lãi']):
-                info['quyền_cổ_tức_tiền'] = 'Có quyền'
+            dividend_cash_map = {
+                'Chi trả cổ tức bằng tiền': [
+                    'chi trả cổ tức bằng tiền',
+                    'cổ tức tiền',
+                    'dividend cash'
+                ],
+                'Thanh toán lãi trái phiếu': [
+                    'thanh toán lãi',
+                    'lãi trái phiếu',
+                    'bond interest',
+                    'interest payment'
+                ],
+                'Thanh toán gốc, lãi': [
+                    'thanh toán gốc',
+                    'trả gốc',
+                    'principal payment',
+                    'maturity payment'
+                ],
+                'Mua lại trái phiếu trước hạn': [
+                    'mua lại trái phiếu',
+                    'early redemption',
+                    'buyback'
+                ]
+            }
+            info['quyền_cổ_tức_tiền'] = self.extract_quyền_values(text_content, dividend_cash_map)
 
-            # 3. Quyền cổ tức cổ phiếu
-            if self.contains_keyword(text_content, ['cổ tức cổ phiếu', 'cổ phiếu thưởng', 'bonus share']):
-                info['quyền_cổ_tức_cổ_phiếu'] = 'Có quyền'
+            # 3. Quyền cổ_tức cổ phiếu
+            dividend_share_map = {
+                'Trả cổ tức bằng cổ phiếu': [
+                    'trả cổ tức bằng cổ phiếu',
+                    'cổ tức cổ phiếu',
+                    'stock dividend'
+                ],
+                'Phát hành cổ phiếu': [
+                    'phát hành cổ phiếu',
+                    'share issuance',
+                    'cổ phiếu thưởng',
+                    'bonus shares'
+                ]
+            }
+            info['quyền_cổ_tức_cổ_phiếu'] = self.extract_quyền_values(text_content, dividend_share_map)
 
             # 4. Quyền mua
-            if self.contains_keyword(text_content, ['quyền mua', 'right issue', 'phát hành thêm', 'pre-emptive right']):
-                info['quyền_mua'] = 'Có quyền'
+            purchase_map = {
+                'Thực hiện quyền mua Trái phiếu chuyển đổi': [
+                    'quyền mua trái phiếu chuyển đổi',
+                    'conversion bond purchase',
+                    'convertible bond exercise'
+                ],
+                'Thực hiện quyền mua cổ phiếu': [
+                    'quyền mua cổ phiếu',
+                    'quyền mua',
+                    'right issue',
+                    'subscription right'
+                ]
+            }
+            info['quyền_mua'] = self.extract_quyền_values(text_content, purchase_map)
 
             # 5. Quyền hoán đổi, chuyển đổi
-            if self.contains_keyword(text_content, ['chuyển đổi', 'hoán đổi', 'convertible', 'swap']):
-                info['quyền_hoán_đổi_chuyển_đổi'] = 'Có quyền'
+            swap_map = {
+                'Hoán đổi cổ phiếu': [
+                    'hoán đổi cổ phiếu',
+                    'swap shares',
+                    'cổ phiếu hoán đổi'
+                ],
+                'Chuyển đổi trái phiếu': [
+                    'chuyển đổi trái phiếu',
+                    'convertible bond',
+                    'bond conversion'
+                ]
+            }
+            info['quyền_hoán_đổi_chuyển_đổi'] = self.extract_quyền_values(text_content, swap_map)
 
             # 6. Chứng quyền
-            if self.contains_keyword(text_content, ['chứng quyền', 'warrant', 'call warrant', 'put warrant']):
-                info['chứng_quyền'] = 'Có'
+            warrant_map = {
+                'Có': [
+                    'chứng quyền',
+                    'warrant',
+                    'call warrant',
+                    'put warrant'
+                ]
+            }
+            info['chứng_quyền'] = self.extract_quyền_values(text_content, warrant_map)
 
             # 7. Chấp thuận đăng ký
-            if self.contains_keyword(text_content, ['chấp thuận đăng ký', 'phê duyệt đăng ký', 'approval']):
-                info['chấp_thuận_đăng_ký'] = 'Được chấp thuận'
+            approval_map = {
+                'Đăng ký cổ phiếu, trái phiếu': [
+                    'đăng ký cổ phiếu',
+                    'đăng ký trái phiếu',
+                    'registration approval',
+                    'chấp thuận đăng ký'
+                ]
+            }
+            info['chấp_thuận_đăng_ký'] = self.extract_quyền_values(text_content, approval_map)
 
-            # 8. Tin húy
-            if self.contains_keyword(text_content, ['hủy', 'huỷ', 'cancellation', 'terminate']):
-                info['tin_húy'] = 'Có'
+            # 8. Tin hủy
+            cancellation_map = {
+                'Hủy ngày đăng ký cuối cùng': [
+                    'hủy ngày đăng ký',
+                    'cancel registration date'
+                ],
+                'Hủy danh sách người sử hữu chứng khoán': [
+                    'hủy danh sách',
+                    'cancel list'
+                ],
+                'Hủy dăng ký chứng khoán, trái phiếu': [
+                    'hủy đăng ký',
+                    'huỷ',
+                    'delisting',
+                    'deregistration'
+                ]
+            }
+            info['tin_húy'] = self.extract_quyền_values(text_content, cancellation_map)
 
             # 9. Thay đổi
-            if self.contains_keyword(text_content, ['thay đổi', 'tách cổ phiếu', 'gộp cổ phiếu', 'đổi tên', 'thay đổi mệnh giá']):
-                info['thay_đổi'] = 'Có thay đổi'
+            change_map = {
+                'Thay đổi thời gian thanh toán': [
+                    'thay đổi thời gian thanh toán',
+                    'thay đổi ngày thanh toán',
+                    'payment date change'
+                ],
+                'Chuyển dữ liệu đăng ký (chuyển sàn)': [
+                    'chuyển dữ liệu',
+                    'chuyển sàn',
+                    'data transfer',
+                    'transfer between exchanges'
+                ]
+            }
+            info['thay_đổi'] = self.extract_quyền_values(text_content, change_map)
 
             # Extract "Cập nhật ngày" từ bài viết (thay vì lấy từ listing page)
             actual_update_date = None
