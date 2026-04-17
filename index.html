@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPS Automation VHCK - Quản Lý Quyền Chứng Khoán</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0f1419;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            border: 1px solid #334155;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #38bdf8;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header-info {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .status-pending {
+            background: #78350f;
+            color: #fef3c7;
+        }
+
+        .status-confirmed {
+            background: #064e3b;
+            color: #d1fae5;
+        }
+
+        .status-rejected {
+            background: #7f1d1d;
+            color: #fee2e2;
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #334155;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #38bdf8;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+
+        .search-box input::placeholder {
+            color: #64748b;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: 1px solid #334155;
+            background: #1e293b;
+            color: #e0e0e0;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #334155;
+            border-color: #475569;
+        }
+
+        .btn-primary {
+            background: #0284c7;
+            border-color: #0284c7;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0369a1;
+            border-color: #0369a1;
+        }
+
+        .btn.active {
+            background: #38bdf8;
+            border-color: #38bdf8;
+            color: #0f1419;
+        }
+
+        .table-wrapper {
+            background: #1e293b;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #0f172a;
+            border-bottom: 2px solid #334155;
+        }
+
+        th {
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #38bdf8;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #334155;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+
+        tbody tr {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background: #334155;
+        }
+
+        .symbol-cell {
+            font-weight: 600;
+            color: #38bdf8;
+        }
+
+        .status-cell {
+            width: 120px;
+        }
+
+        .status-badge-sm {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state-text {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            animation: fadeIn 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 40px;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            max-width: 900px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            animation: slideUp 0.3s ease;
+        }
+
+        .modal-header {
+            background: #0f172a;
+            padding: 20px 30px;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #38bdf8;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: #38bdf8;
+        }
+
+        .modal-body {
+            padding: 30px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .detail-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #38bdf8;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .detail-item {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 3px solid #0284c7;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .detail-value {
+            color: #e0e0e0;
+            font-size: 14px;
+            word-break: break-word;
+            line-height: 1.5;
+        }
+
+        .detail-value a {
+            color: #38bdf8;
+            text-decoration: none;
+            border-bottom: 1px solid #38bdf8;
+        }
+
+        .detail-value a:hover {
+            color: #7dd3fc;
+            border-bottom-color: #7dd3fc;
+        }
+
+        .source-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: #0284c7;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .source-link:hover {
+            background: #0369a1;
+            transform: translateY(-2px);
+        }
+
+        .full-text-section {
+            background: #0f172a;
+            padding: 20px;
+            border-radius: 6px;
+            border-left: 3px solid #0284c7;
+            margin-top: 20px;
+        }
+
+        .full-text {
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            padding-top: 20px;
+            border-top: 1px solid #334155;
+        }
+
+        .btn-confirm {
+            background: #059669;
+            border-color: #059669;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-confirm:hover {
+            background: #047857;
+        }
+
+        .btn-reject {
+            background: #dc2626;
+            border-color: #dc2626;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-reject:hover {
+            background: #b91c1c;
+        }
+
+        .btn-cancel {
+            background: #475569;
+            border-color: #475569;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-cancel:hover {
+            background: #334155;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 6px;
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+
+        .notification.success {
+            background: #064e3b;
+            color: #d1fae5;
+            border: 1px solid #10b981;
+        }
+
+        .notification.error {
+            background: #7f1d1d;
+            color: #fee2e2;
+            border: 1px solid #ef4444;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .timestamp {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .toolbar {
+                flex-direction: column;
+            }
+
+            .filter-buttons {
+                flex-direction: column;
+            }
+
+            .filter-buttons .btn {
+                width: 100%;
+            }
+
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            th, td {
+                padding: 12px 8px;
+                font-size: 12px;
+            }
+
+            .modal-body {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div>
+                    <h1>VPS Automation VHCK</h1>
+                    <p style="color: #94a3b8; margin-top: 5px;">Hệ thống Quản Lý Quyền Chứng Khoán</p>
+                </div>
+                <div class="header-info">
+                    <span class="status-badge status-pending" id="overallStatus">CHỜ XỬ LÝ</span>
+                    <button class="btn btn-primary" onclick="loadDataFromFile()">Tải Dữ Liệu</button>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="totalRecords">0</div>
+                    <div class="stat-label">Tổng Bản Ghi</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="confirmedCount">0</div>
+                    <div class="stat-label">Đã Xác Nhận</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="rejectedCount">0</div>
+                    <div class="stat-label">Bị Từ Chối</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="pendingCount">0</div>
+                    <div class="stat-label">Chờ Xử Lý</div>
+                </div>
+            </div>
+
+            <div class="timestamp" id="lastUpdate">Lần cập nhật cuối: --</div>
+        </header>
+
+        <div class="toolbar">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Tìm kiếm theo mã, tên tổ chức hoặc tên chứng khoán..." onkeyup="filterTable()">
+            </div>
+            <div class="filter-buttons">
+                <button class="btn active" onclick="filterByStatus('all')">Tất Cả</button>
+                <button class="btn" onclick="filterByStatus('pending')">Chờ Xử Lý</button>
+                <button class="btn" onclick="filterByStatus('confirmed')">Đã Xác Nhận</button>
+                <button class="btn" onclick="filterByStatus('rejected')">Bị Từ Chối</button>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="recordsTable">
+                <thead>
+                    <tr>
+                        <th>Mã CK</th>
+                        <th>Tên Chứng Khoán</th>
+                        <th>Tổ Chức Đăng Ký</th>
+                        <th>Nơi Giao Dịch</th>
+                        <th>Loại CK</th>
+                        <th>Trạng Thái</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 60px 20px;">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📄</div>
+                                <div class="empty-state-text">Chưa có dữ liệu</div>
+                                <p style="color: #64748b; font-size: 12px;">Nhấn nút "Tải Dữ Liệu" hoặc chạy N8n workflow để thu thập dữ liệu</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">Chi tiết mã CK</div>
+                <button class="modal-close" onclick="closeModal()">X</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-section">
+                    <div class="section-title">Thông Tin Cơ Bản</div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">Mã Chứng Khoán</div>
+                            <div class="detail-value" id="detailCode">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Tên Chứng Khoán</div>
+                            <div class="detail-value" id="detailName">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Tổ Chức Đăng Ký</div>
+                            <div class="detail-value" id="detailOrg">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Mã ISIN</div>
+                            <div class="detail-value" id="detailISIN">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Nơi Giao Dịch</div>
+                            <div class="detail-value" id="detailExchange">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Loại Chứng Khoán</div>
+                            <div class="detail-value" id="detailType">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="section-title">Thông Tin Thực Hiện</div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">Ngày Đăng Ký Cuối</div>
+                            <div class="detail-value" id="detailRegDate">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Thời Gian Thực Hiện</div>
+                            <div class="detail-value" id="detailTime">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Địa Điểm Thực Hiện</div>
+                            <div class="detail-value" id="detailLocation">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="section-title">Quyền và Lợi Ích</div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">Quyền Họp Đại Hội Cổ Đông</div>
+                            <div class="detail-value" id="detailRightShMeeting">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Quyền Cổ Tức Tiền</div>
+                            <div class="detail-value" id="detailRightDividendCash">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Quyền Cổ Tức Cổ Phiếu</div>
+                            <div class="detail-value" id="detailRightDividendShare">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Quyền Mua</div>
+                            <div class="detail-value" id="detailRightPurchase">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Quyền Hoán Đổi / Chuyển Đổi</div>
+                            <div class="detail-value" id="detailRightSwapConversion">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Chứng Quyền</div>
+                            <div class="detail-value" id="detailWarrant">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Chấp Thuận Đăng Ký</div>
+                            <div class="detail-value" id="detailRegistrationApproval">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Tin Hủy</div>
+                            <div class="detail-value" id="detailCancellation">--</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Thay Đổi</div>
+                            <div class="detail-value" id="detailChange">--</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <div class="detail-label">Lý Do / Mục Đích</div>
+                        <div class="detail-value" id="detailPurpose" style="margin-top: 8px;">--</div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <div class="detail-label">Tỷ Lệ Thực Hiện</div>
+                        <div class="detail-value" id="detailRatio" style="margin-top: 8px;">--</div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="section-title">Nguồn Dữ Liệu</div>
+                    <div>
+                        <div class="detail-label">URL Gốc</div>
+                        <a id="detailUrl" href="#" target="_blank" class="source-link">Xem trên nguồn gốc</a>
+                    </div>
+                </div>
+
+                <div class="detail-section" id="fullTextSection" style="display: none;">
+                    <div class="section-title">Nội Dung Đầy Đủ</div>
+                    <div class="full-text-section">
+                        <div class="full-text" id="detailFullText"></div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-confirm" onclick="confirmRecord()">Xác Nhận</button>
+                    <button class="btn btn-reject" onclick="rejectRecord()">Từ Chối</button>
+                    <button class="btn btn-cancel" onclick="closeModal()">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allRecords = [];
+        let currentFilter = 'all';
+        let selectedRecord = null;
+
+        function initPage() {
+            loadFromLocalStorage();
+            renderTable();
+            updateStats();
+            loadDataFromFile();
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('vpsRecords');
+            if (saved) {
+                allRecords = JSON.parse(saved);
+            }
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('vpsRecords', JSON.stringify(allRecords));
+        }
+
+        function loadDataFromFile() {
+            if (window.EMBEDDED_DATA && window.EMBEDDED_DATA.records) {
+                console.log('Loading embedded data...');
+                allRecords = window.EMBEDDED_DATA.records;
+                saveToLocalStorage();
+                renderTable();
+                updateStats();
+                showNotification('Đã tải dữ liệu từ VSD', 'success');
+                return;
+            }
+
+            const fetchUrls = [
+                '/data/vsd_records.json',
+                '../data/vsd_records.json',
+                '../../data/vsd_records.json'
+            ];
+
+            function tryFetch(urls, index) {
+                if (index >= urls.length) {
+                    console.log('Could not load from any path.');
+                    return;
+                }
+
+                fetch(urls[index])
+                    .then(response => {
+                        if (!response.ok) throw new Error('HTTP ' + response.status);
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.records && Array.isArray(data.records)) {
+                            allRecords = data.records;
+                            saveToLocalStorage();
+                            renderTable();
+                            updateStats();
+                            showNotification('Đã tải ' + data.total_records + ' bản ghi từ VSD', 'success');
+                        } else {
+                            throw new Error('Invalid data format');
+                        }
+                    })
+                    .catch(err => {
+                        tryFetch(urls, index + 1);
+                    });
+            }
+
+            tryFetch(fetchUrls, 0);
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+
+            const filtered = allRecords.filter(record => {
+                if (currentFilter === 'all') return true;
+                return record.status === currentFilter;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 60px 20px;"><div class="empty-state"><div class="empty-state-icon">K</div><div class="empty-state-text">Không tìm thấy bản ghi</div></div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(record => '<tr onclick="showDetail(\'' + record.code + '\')" ><td class="symbol-cell">' + escapeHtml(record.code) + '</td><td>' + escapeHtml(record.tên_chứng_khoán || '--') + '</td><td>' + escapeHtml(record.tên_tổ_chức_đăng_ký || '--') + '</td><td>' + escapeHtml(record.nơi_giao_dịch || '--') + '</td><td>' + escapeHtml(record.loại_chứng_khoán || '--') + '</td><td class="status-cell"><span class="status-badge-sm status-' + record.status + '">' + getStatusText(record.status) + '</span></td></tr>').join('');
+        }
+
+        function filterTable() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            const filtered = allRecords.filter(record => {
+                const matchesStatus = currentFilter === 'all' || record.status === currentFilter;
+                const matchesSearch = !searchTerm ||
+                    record.code.toLowerCase().includes(searchTerm) ||
+                    (record.tên_chứng_khoán || '').toLowerCase().includes(searchTerm) ||
+                    (record.tên_tổ_chức_đăng_ký || '').toLowerCase().includes(searchTerm);
+
+                return matchesStatus && matchesSearch;
+            });
+
+            const tbody = document.getElementById('tableBody');
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 60px 20px;"><div class="empty-state"><div class="empty-state-icon">K</div><div class="empty-state-text">Không tìm thấy kết quả</div></div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(record => '<tr onclick="showDetail(\'' + record.code + '\')" ><td class="symbol-cell">' + escapeHtml(record.code) + '</td><td>' + escapeHtml(record.tên_chứng_khoán || '--') + '</td><td>' + escapeHtml(record.tên_tổ_chức_đăng_ký || '--') + '</td><td>' + escapeHtml(record.nơi_giao_dịch || '--') + '</td><td>' + escapeHtml(record.loại_chứng_khoán || '--') + '</td><td class="status-cell"><span class="status-badge-sm status-' + record.status + '">' + getStatusText(record.status) + '</span></td></tr>').join('');
+        }
+
+        function filterByStatus(status) {
+            currentFilter = status;
+            document.querySelectorAll('.filter-buttons .btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            renderTable();
+        }
+
+        function showDetail(code) {
+            selectedRecord = allRecords.find(r => r.code === code);
+            if (!selectedRecord) return;
+
+            document.getElementById('modalTitle').textContent = 'Chi tiết - ' + escapeHtml(code);
+            document.getElementById('detailCode').textContent = escapeHtml(selectedRecord.code || '--');
+            document.getElementById('detailName').textContent = escapeHtml(selectedRecord.tên_chứng_khoán || '--');
+            document.getElementById('detailOrg').textContent = escapeHtml(selectedRecord.tên_tổ_chức_đăng_ký || '--');
+            document.getElementById('detailISIN').textContent = escapeHtml(selectedRecord.mã_isin || '--');
+            document.getElementById('detailExchange').textContent = escapeHtml(selectedRecord.nơi_giao_dịch || '--');
+            document.getElementById('detailType').textContent = escapeHtml(selectedRecord.loại_chứng_khoán || '--');
+            document.getElementById('detailRegDate').textContent = escapeHtml(selectedRecord.ngày_đăng_ký_cuối || '--');
+            document.getElementById('detailTime').textContent = escapeHtml(selectedRecord.thời_gian_thực_hiện || '--');
+            document.getElementById('detailLocation').textContent = escapeHtml(selectedRecord.địa_điểm_thực_hiện || '--');
+            document.getElementById('detailRightShMeeting').textContent = escapeHtml(selectedRecord.quyền_họp_đại_hội_cổ_đông || '--');
+            document.getElementById('detailRightDividendCash').textContent = escapeHtml(selectedRecord.quyền_cổ_tức_tiền || '--');
+            document.getElementById('detailRightDividendShare').textContent = escapeHtml(selectedRecord.quyền_cổ_tức_cổ_phiếu || '--');
+            document.getElementById('detailRightPurchase').textContent = escapeHtml(selectedRecord.quyền_mua || '--');
+            document.getElementById('detailRightSwapConversion').textContent = escapeHtml(selectedRecord.quyền_hoán_đổi_chuyển_đổi || '--');
+            document.getElementById('detailWarrant').textContent = escapeHtml(selectedRecord.chứng_quyền || '--');
+            document.getElementById('detailRegistrationApproval').textContent = escapeHtml(selectedRecord.chấp_thuận_đăng_ký || '--');
+            document.getElementById('detailCancellation').textContent = escapeHtml(selectedRecord.tin_húy || '--');
+            document.getElementById('detailChange').textContent = escapeHtml(selectedRecord.thay_đổi || '--');
+            document.getElementById('detailPurpose').textContent = escapeHtml(selectedRecord.lý_do_mục_đích || '--');
+            document.getElementById('detailRatio').textContent = escapeHtml(selectedRecord.tỷ_lệ_thực_hiện || '--');
+
+            if (selectedRecord.url) {
+                document.getElementById('detailUrl').href = selectedRecord.url;
+                document.getElementById('detailUrl').textContent = 'Xem trên nguồn gốc';
+            }
+
+            if (selectedRecord.title) {
+                document.getElementById('fullTextSection').style.display = 'block';
+                document.getElementById('detailFullText').textContent = escapeHtml(selectedRecord.title);
+            } else {
+                document.getElementById('fullTextSection').style.display = 'none';
+            }
+
+            document.getElementById('detailModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('show');
+            selectedRecord = null;
+        }
+
+        function confirmRecord() {
+            if (selectedRecord) {
+                selectedRecord.status = 'confirmed';
+                selectedRecord.confirmed_by = 'User';
+                selectedRecord.confirmed_at = new Date().toISOString();
+                saveToLocalStorage();
+                closeModal();
+                renderTable();
+                updateStats();
+                showNotification('Đã xác nhận ' + selectedRecord.code, 'success');
+            }
+        }
+
+        function rejectRecord() {
+            if (selectedRecord) {
+                selectedRecord.status = 'rejected';
+                selectedRecord.rejected_by = 'User';
+                selectedRecord.rejected_at = new Date().toISOString();
+                saveToLocalStorage();
+                closeModal();
+                renderTable();
+                updateStats();
+                showNotification('Đã từ chối ' + selectedRecord.code, 'error');
+            }
+        }
+
+        function updateStats() {
+            const total = allRecords.length;
+            const confirmed = allRecords.filter(r => r.status === 'confirmed').length;
+            const rejected = allRecords.filter(r => r.status === 'rejected').length;
+            const pending = allRecords.filter(r => r.status === 'pending').length;
+
+            document.getElementById('totalRecords').textContent = total;
+            document.getElementById('confirmedCount').textContent = confirmed;
+            document.getElementById('rejectedCount').textContent = rejected;
+            document.getElementById('pendingCount').textContent = pending;
+
+            const statusEl = document.getElementById('overallStatus');
+            if (pending === 0 && total > 0) {
+                statusEl.textContent = confirmed > 0 ? 'HOÀN THÀNH' : 'CÓ LỖI';
+                statusEl.className = 'status-badge ' + (confirmed > 0 ? 'status-confirmed' : 'status-rejected');
+            } else {
+                statusEl.textContent = 'CHỜ XỬ LÝ';
+                statusEl.className = 'status-badge status-pending';
+            }
+
+            if (allRecords.length > 0) {
+                const latest = new Date(Math.max(...allRecords.map(r => new Date(r.collected_at || new Date()))));
+                document.getElementById('lastUpdate').textContent = 'Lần cập nhật cuối: ' + latest.toLocaleString('vi-VN');
+            }
+        }
+
+        function getStatusText(status) {
+            const map = {
+                'pending': 'Chờ Xác Nhận',
+                'confirmed': 'Đã Xác Nhận',
+                'rejected': 'Bị Từ Chối'
+            };
+            return map[status] || status;
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = 'notification ' + type;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '--';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.toString().replace(/[&<>"']/g, m => map[m]);
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('detailModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        window.addEventListener('load', initPage);
+    </script>
+</body>
+</html>
