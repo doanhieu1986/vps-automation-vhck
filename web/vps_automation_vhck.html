@@ -1048,19 +1048,15 @@
                   console.log('ERROR: tableBody element NOT found!');
               }
 
-              // Set up event listeners for filters
+              // Set up event listeners for date filters
               const startDateInput = document.getElementById('startDate');
               const endDateInput = document.getElementById('endDate');
-              const statusFilter = document.getElementById('statusFilter');
 
               if (startDateInput) {
                   startDateInput.addEventListener('change', filterTable);
               }
               if (endDateInput) {
                   endDateInput.addEventListener('change', filterTable);
-              }
-              if (statusFilter) {
-                  statusFilter.addEventListener('change', filterTable);
               }
 
               loadDataFromFile();
