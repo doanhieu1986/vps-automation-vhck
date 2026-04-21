@@ -760,6 +760,14 @@
         let selectedRecord = null;
 
         function initPage() {
+            // Nếu có dữ liệu embedded, bỏ qua localStorage
+            if (window.EMBEDDED_DATA && window.EMBEDDED_DATA.records) {
+                console.log('Detected embedded data, skipping localStorage');
+                loadDataFromFile();
+                return;
+            }
+
+            // Nếu không, load từ localStorage
             loadFromLocalStorage();
             renderTable();
             updateStats();
@@ -778,13 +786,25 @@
         }
 
         function loadDataFromFile() {
+            // Ưu tiên dữ liệu embedded (từ HTML) hơn localStorage
             if (window.EMBEDDED_DATA && window.EMBEDDED_DATA.records) {
-                console.log('Loading embedded data...');
+                console.log('Loading embedded data from HTML...');
                 allRecords = window.EMBEDDED_DATA.records;
-                saveToLocalStorage();
+                saveToLocalStorage(); // Cập nhật localStorage với dữ liệu mới
                 renderTable();
                 updateStats();
-                showNotification('Đã tải dữ liệu từ VSD', 'success');
+                showNotification('Đã tải dữ liệu từ VSD (embedded)', 'success');
+                return;
+            }
+
+            // Fallback sang localStorage nếu không có embedded data
+            const savedInStorage = localStorage.getItem('vpsRecords');
+            if (savedInStorage) {
+                console.log('Loading from localStorage...');
+                allRecords = JSON.parse(savedInStorage);
+                renderTable();
+                updateStats();
+                showNotification('Đã tải dữ liệu từ bộ nhớ', 'success');
                 return;
             }
 
