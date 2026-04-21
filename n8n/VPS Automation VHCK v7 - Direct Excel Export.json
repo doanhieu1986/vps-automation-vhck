@@ -37,51 +37,6 @@
         512,
         208
       ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const fs = require('fs');\nconst input = $input.first().json;\nconst jsonInfo = input.json_info || {};\n\n// N\u1ebfu json_info kh\u00f4ng c\u00f3 ho\u1eb7c kh\u00f4ng success, c\u1ed1 g\u1eafng load t\u1eeb \u0111\u0129a\nif (!jsonInfo || !jsonInfo.status || jsonInfo.status !== 'success') {\n  // Th\u1eed t\u00ecm vsd_records.json t\u1eeb c\u00e1c path kh\u00e1c nhau\n  const possiblePaths = [\n    '/app/vps-automation-vhck/data/vsd_records.json',\n    '/data/vsd_records.json',\n  ];\n\n  let jsonPath = null;\n  for (const p of possiblePaths) {\n    try {\n      if (fs.existsSync(p)) {\n        jsonPath = p;\n        break;\n      }\n    } catch (e) {}\n  }\n\n  if (!jsonPath) {\n    return [{ json: { status: 'warning', message: 'JSON file not found', details: jsonInfo } }];\n  }\n\n  // Load t\u1eeb \u0111\u0129a\n  try {\n    const jsonData = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));\n    return [{ json: { \n      status: 'success',\n      message: 'JSON file found on disk: ' + jsonData.records.length + ' records',\n      file: jsonPath,\n      file_size: fs.statSync(jsonPath).size,\n      records_count: jsonData.records.length,\n      html_status: 'ready_to_load',\n      timestamp: new Date().toISOString()\n    } }];\n  } catch (e) {\n    return [{ json: { status: 'error', message: 'Error reading JSON file: ' + e.message } }];\n  }\n}\n\nconst jsonPath = jsonInfo.file;\n\ntry {\n  if (fs.existsSync(jsonPath)) {\n    const stats = fs.statSync(jsonPath);\n    const jsonData = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));\n    \n    return [{ json: { \n      status: 'success',\n      message: 'JSON file synchronized: ' + jsonInfo.records_count + ' records',\n      file: jsonPath,\n      file_size: stats.size,\n      records_count: jsonInfo.records_count,\n      html_status: 'ready_to_load',\n      timestamp: new Date().toISOString()\n    } }];\n  } else {\n    return [{ json: { status: 'error', message: 'JSON file not found: ' + jsonPath } }];\n  }\n} catch (error) {\n  return [{ json: { status: 'error', message: error.message } }];\n}"
-      },
-      "id": "node-inject-html",
-      "name": "Inject Data to HTML",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 1,
-      "position": [
-        736,
-        208
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const https = require('https');\nconst fs = require('fs');\n\nconst token = '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';\nconst owner = 'doanhieu1986';\nconst repo = 'vps-automation-vhck';\n\nconst pushFile = (path, content, message) => {\n  return new Promise((resolve, reject) => {\n    const getShaUrl = `/repos/${owner}/${repo}/contents/${path}`;\n    \n    const getReq = https.request({\n      hostname: 'api.github.com',\n      path: getShaUrl,\n      method: 'GET',\n      headers: {\n        'Authorization': `token ${token}`,\n        'Accept': 'application/vnd.github.v3+json',\n        'User-Agent': 'n8n'\n      }\n    }, (res) => {\n      let data = '';\n      res.on('data', chunk => data += chunk);\n      res.on('end', () => {\n        let sha = '';\n        try {\n          const json = JSON.parse(data);\n          sha = json.sha || '';\n        } catch (e) {}\n        \n        const body = JSON.stringify({\n          message: message,\n          content: content,\n          sha: sha,\n          branch: 'main'\n        });\n        \n        const pushReq = https.request({\n          hostname: 'api.github.com',\n          path: getShaUrl,\n          method: 'PUT',\n          headers: {\n            'Authorization': `token ${token}`,\n            'Accept': 'application/vnd.github.v3+json',\n            'Content-Type': 'application/json',\n            'Content-Length': body.length,\n            'User-Agent': 'n8n'\n          }\n        }, (res) => {\n          let respData = '';\n          res.on('data', chunk => respData += chunk);\n          res.on('end', () => {\n            if (res.statusCode >= 400) {\n              reject(new Error(`GitHub API error: ${res.statusCode}`));\n            } else {\n              resolve(respData);\n            }\n          });\n        });\n        \n        pushReq.on('error', reject);\n        pushReq.write(body);\n        pushReq.end();\n      });\n    });\n    \n    getReq.on('error', reject);\n    getReq.end();\n  });\n};\n\ntry {\n  const htmlPath = '/app/vps-automation-vhck/web/vps_automation_vhck.html';\n  const jsonPath = '/app/vps-automation-vhck/data/vsd_records.json';\n  \n  let htmlContent = fs.readFileSync(htmlPath, 'utf-8');\n  const jsonContent = fs.readFileSync(jsonPath, 'utf-8');\n  const jsonData = JSON.parse(jsonContent);\n  \n  const recordCount = jsonData.records ? jsonData.records.length : 0;\n  \n  const embeddedScript = `\n    <script>\n      window.EMBEDDED_DATA = ${JSON.stringify(jsonData)};\n      console.log('Embedded data loaded: ' + ${recordCount} + ' records');\n    </script>\n  `;\n  \n  htmlContent = htmlContent.replace(/<script>\\s*window\\.EMBEDDED_DATA = .*?<\\/script>/s, '');\n  htmlContent = htmlContent.replace('</body>', embeddedScript + '</body>');\n  \n  const htmlBase64 = Buffer.from(htmlContent).toString('base64');\n  \n  return new Promise(async (resolve) => {\n    try {\n      await pushFile('index.html', htmlBase64, 'Nh\u00fang d\u1eef li\u1ec7u VSD v\u00e0o HTML - ' + new Date().toISOString() + ' (' + recordCount + ' records)');\n      \n      resolve([{\n        json: {\n          status: 'success',\n          message: '\u0110\u00e3 deploy l\u00ean GitHub Pages v\u1edbi ' + recordCount + ' records embedded',\n          github_pages_url: 'https://doanhieu1986.github.io/vps-automation-vhck/',\n          records_embedded: recordCount,\n          data_embedded: true,\n          timestamp: new Date().toISOString()\n        }\n      }]);\n    } catch (error) {\n      resolve([{\n        json: {\n          status: 'error',\n          message: error.message\n        }\n      }]);\n    }\n  });\n} catch (error) {\n  return [{\n    json: {\n      status: 'error',\n      message: error.message\n    }\n  }];\n}"
-      },
-      "id": "deploy-github",
-      "name": "Deploy to GitHub Pages",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 1,
-      "position": [
-        960,
-        208
-      ],
-      "credentials": {
-        "githubApi": {
-          "id": "yI8vNy9ZPOTL156D",
-          "name": "GitHub VPS Automation"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const input = $input.first().json;\n\nreturn [{ json: { \n  status: 'success',\n  message: 'Workflow ho\u00e0n th\u00e0nh! D\u1eef li\u1ec7u \u0111\u00e3 \u0111\u01b0\u1ee3c nh\u00fang v\u00e0o HTML',\n  github_pages_url: 'https://doanhieu1986.github.io/vps-automation-vhck/',\n  records_embedded: input.records_embedded || 0,\n  data_embedded: true,\n  details: input,\n  next_step: 'B\u00e1o c\u00e1o c\u00f3 th\u1ec3 xem \u0111\u01b0\u1ee3c t\u1ea1i GitHub Pages v\u1edbi d\u1eef li\u1ec7u m\u1edbi nh\u1ea5t',\n  timestamp: new Date().toISOString()\n} }]"
-      },
-      "id": "node-completion",
-      "name": "Workflow Complete",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 1,
-      "position": [
-        1184,
-        208
-      ]
     }
   ],
   "pinData": {},
@@ -110,35 +65,7 @@
     },
     "Verify Excel File": {
       "main": [
-        [
-          {
-            "node": "Inject Data to HTML",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Inject Data to HTML": {
-      "main": [
-        [
-          {
-            "node": "Deploy to GitHub Pages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Deploy to GitHub Pages": {
-      "main": [
-        [
-          {
-            "node": "Workflow Complete",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     }
   },

@@ -1,0 +1,116 @@
+name: VPS Automation - Deploy to GitHub Pages
+
+on:
+  push:
+    paths:
+      - 'scripts/fetch_vsd.py'
+      - 'data/vsd_records.json'
+      - 'web/vps_automation_vhck.html'
+      - '.github/workflows/deploy-vps.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'  # Run every 6 hours
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 pandas openpyxl
+
+      - name: Fetch VSD data
+        run: |
+          python scripts/fetch_vsd.py > /tmp/vsd_output.json 2>&1
+          cat /tmp/vsd_output.json
+
+      - name: Load VSD data
+        id: vsd_data
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+
+          # Load vsd_records.json
+          with open('data/vsd_records.json') as f:
+            data = json.load(f)
+
+          records_count = len(data.get('records', []))
+          print(f"Records: {records_count}")
+
+          # Set GitHub output
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write(f"records_count={records_count}\n")
+          EOF
+
+      - name: Embed data into HTML
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+
+          # Read HTML
+          with open('web/vps_automation_vhck.html') as f:
+            html_content = f.read()
+
+          # Read VSD data
+          with open('data/vsd_records.json') as f:
+            vsd_data = json.load(f)
+
+          records_count = len(vsd_data.get('records', []))
+
+          # Create embedded script
+          embedded_script = f"""
+    <script>
+      window.EMBEDDED_DATA = {json.dumps(vsd_data)};
+      console.log('Embedded data loaded: {records_count} records');
+    </script>
+  """
+
+          # Remove old embedded data
+          import re
+          html_content = re.sub(r'<script>\s*window\.EMBEDDED_DATA = .*?</script>', '', html_content, flags=re.DOTALL)
+
+          # Insert new embedded data
+          html_content = html_content.replace('</body>', embedded_script + '</body>')
+
+          # Write updated HTML
+          with open('web/vps_automation_vhck.html', 'w') as f:
+            f.write(html_content)
+
+          print(f"✅ Embedded {records_count} records into HTML")
+          EOF
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          git add data/vsd_records.json data/vsd_records.xlsx web/vps_automation_vhck.html
+
+          if git diff --quiet --cached; then
+            echo "No changes to commit"
+          else
+            git commit -m "ci: update VSD data and embed into HTML (${{ steps.vsd_data.outputs.records_count }} records)"
+            git push
+          fi
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
+          force_orphan: false
+          cname: false
