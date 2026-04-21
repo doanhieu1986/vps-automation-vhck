@@ -1,15 +1,8 @@
 name: VPS Automation - Deploy to GitHub Pages
 
 on:
-  push:
-    paths:
-      - 'scripts/fetch_vsd.py'
-      - 'data/vsd_records.json'
-      - 'web/vps_automation_vhck.html'
-      - '.github/workflows/deploy-vps.yml'
-  workflow_dispatch:
-  schedule:
-    - cron: '0 */6 * * *'  # Run every 6 hours
+  # Disabled - n8n handles everything now
+  workflow_dispatch: # Manual trigger only for testing
 
 jobs:
   deploy:
