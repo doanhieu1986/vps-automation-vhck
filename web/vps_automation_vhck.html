@@ -581,6 +581,14 @@
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Tìm kiếm theo mã, tên tổ chức hoặc tên chứng khoán..." onkeyup="filterTable()">
             </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <label style="color: #94a3b8; font-size: 13px;">Từ ngày:</label>
+                <input type="date" id="startDate" class="btn" style="padding: 8px 12px; width: 150px;">
+                <label style="color: #94a3b8; font-size: 13px;">Đến ngày:</label>
+                <input type="date" id="endDate" class="btn" style="padding: 8px 12px; width: 150px;">
+                <button class="btn btn-primary" onclick="filterTable()" style="padding: 8px 12px;">Áp Dụng Lọc</button>
+                <button class="btn" onclick="clearDateFilter()" style="padding: 8px 12px;">Xóa lọc ngày</button>
+            </div>
             <div class="filter-buttons">
                 <button class="btn active" onclick="filterByStatus('all')">Tất Cả</button>
                 <button class="btn" onclick="filterByStatus('pending')">Chờ Xử Lý</button>
@@ -781,9 +789,9 @@
             }
 
             const fetchUrls = [
-                '/data/vsd_records.json',
-                '../data/vsd_records.json',
-                '../../data/vsd_records.json'
+                './vsd_records.json',
+                './vsd_records.json',
+                './vsd_records.json'
             ];
 
             function tryFetch(urls, index) {
@@ -834,6 +842,8 @@
 
         function filterTable() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const startDate = document.getElementById('startDate').value ? new Date(document.getElementById('startDate').value) : null;
+            const endDate = document.getElementById('endDate').value ? new Date(document.getElementById('endDate').value) : null;
 
             const filtered = allRecords.filter(record => {
                 const matchesStatus = currentFilter === 'all' || record.status === currentFilter;
@@ -842,7 +852,18 @@
                     (record.tên_chứng_khoán || '').toLowerCase().includes(searchTerm) ||
                     (record.tên_tổ_chức_đăng_ký || '').toLowerCase().includes(searchTerm);
 
-                return matchesStatus && matchesSearch;
+                let matchesDate = true;
+                if (startDate || endDate) {
+                    const recordDate = new Date(record.collected_date || record.date);
+                    if (startDate && recordDate < startDate) matchesDate = false;
+                    if (endDate) {
+                        const endDateWithTime = new Date(endDate);
+                        endDateWithTime.setHours(23, 59, 59, 999);
+                        if (recordDate > endDateWithTime) matchesDate = false;
+                    }
+                }
+
+                return matchesStatus && matchesSearch && matchesDate;
             });
 
             const tbody = document.getElementById('tableBody');
@@ -861,6 +882,12 @@
             });
             event.target.classList.add('active');
             renderTable();
+        }
+
+        function clearDateFilter() {
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            filterTable();
         }
 
         function showDetail(code) {

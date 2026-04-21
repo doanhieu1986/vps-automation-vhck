@@ -292,8 +292,10 @@ class VSDFetcher:
                     max_length=300
                 )
 
-            # Extract 9 new quyền fields từ text content với các giá trị cụ thể
+            # Extract 9 new quyền fields từ text content + tiêu đề với các giá trị cụ thể
             # Sử dụng keyword mapping để tìm các giá trị cụ thể trong text
+            # Include title trong search để bắt được những trang dạng danh sách
+            search_text = text_content + " " + soup.find('title', string=True).get_text() if soup.find('title') else text_content
 
             # 1. Quyền họp đại hội cổ đông
             dhdc_map = {
@@ -318,7 +320,7 @@ class VSDFetcher:
                     'extraordinary general meeting'
                 ]
             }
-            info['quyền_họp_đại_hội_cổ_đông'] = self.extract_quyền_values(text_content, dhdc_map)
+            info['quyền_họp_đại_hội_cổ_đông'] = self.extract_quyền_values(search_text, dhdc_map)
 
             # 2. Quyền cổ tức tiền
             dividend_cash_map = {
@@ -345,7 +347,7 @@ class VSDFetcher:
                     'buyback'
                 ]
             }
-            info['quyền_cổ_tức_tiền'] = self.extract_quyền_values(text_content, dividend_cash_map)
+            info['quyền_cổ_tức_tiền'] = self.extract_quyền_values(search_text, dividend_cash_map)
 
             # 3. Quyền cổ_tức cổ phiếu
             dividend_share_map = {
@@ -361,7 +363,7 @@ class VSDFetcher:
                     'bonus shares'
                 ]
             }
-            info['quyền_cổ_tức_cổ_phiếu'] = self.extract_quyền_values(text_content, dividend_share_map)
+            info['quyền_cổ_tức_cổ_phiếu'] = self.extract_quyền_values(search_text, dividend_share_map)
 
             # 4. Quyền mua
             purchase_map = {
@@ -377,7 +379,7 @@ class VSDFetcher:
                     'subscription right'
                 ]
             }
-            info['quyền_mua'] = self.extract_quyền_values(text_content, purchase_map)
+            info['quyền_mua'] = self.extract_quyền_values(search_text, purchase_map)
 
             # 5. Quyền hoán đổi, chuyển đổi
             swap_map = {
@@ -392,7 +394,7 @@ class VSDFetcher:
                     'bond conversion'
                 ]
             }
-            info['quyền_hoán_đổi_chuyển_đổi'] = self.extract_quyền_values(text_content, swap_map)
+            info['quyền_hoán_đổi_chuyển_đổi'] = self.extract_quyền_values(search_text, swap_map)
 
             # 6. Chứng quyền
             warrant_map = {
@@ -403,7 +405,7 @@ class VSDFetcher:
                     'put warrant'
                 ]
             }
-            info['chứng_quyền'] = self.extract_quyền_values(text_content, warrant_map)
+            info['chứng_quyền'] = self.extract_quyền_values(search_text, warrant_map)
 
             # 7. Chấp thuận đăng ký
             approval_map = {
@@ -414,7 +416,7 @@ class VSDFetcher:
                     'chấp thuận đăng ký'
                 ]
             }
-            info['chấp_thuận_đăng_ký'] = self.extract_quyền_values(text_content, approval_map)
+            info['chấp_thuận_đăng_ký'] = self.extract_quyền_values(search_text, approval_map)
 
             # 8. Tin hủy
             cancellation_map = {
@@ -433,7 +435,7 @@ class VSDFetcher:
                     'deregistration'
                 ]
             }
-            info['tin_húy'] = self.extract_quyền_values(text_content, cancellation_map)
+            info['tin_húy'] = self.extract_quyền_values(search_text, cancellation_map)
 
             # 9. Thay đổi
             change_map = {
@@ -449,7 +451,7 @@ class VSDFetcher:
                     'transfer between exchanges'
                 ]
             }
-            info['thay_đổi'] = self.extract_quyền_values(text_content, change_map)
+            info['thay_đổi'] = self.extract_quyền_values(search_text, change_map)
 
             # Extract "Cập nhật ngày" từ bài viết (thay vì lấy từ listing page)
             actual_update_date = None
