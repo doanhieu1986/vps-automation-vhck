@@ -233,6 +233,39 @@ class VSDFetcher:
             # Find all label-value pairs trong HTML structure chuẩn
             label_divs = soup.find_all('div', class_='col-md-4')
 
+            # Nếu không tìm được col-md-4, thử extract từ text_content
+            if not label_divs:
+                # Extract code từ text content (pattern: CODE: ...)
+                code_match = re.search(r'^([A-Z0-9]{6,})\s*:', text_content.strip(), re.MULTILINE)
+                if code_match:
+                    extracted_code = code_match.group(1)
+
+                # Extract fields từ pattern "Label: Value"
+                # Tên chứng khoán
+                name_match = re.search(r'Tên chứng khoán[:\s]+([^\n]+)', text_content, re.IGNORECASE)
+                if name_match:
+                    info['tên_chứng_khoán'] = name_match.group(1).strip()
+
+                # Mã chứng khoán
+                code_match2 = re.search(r'Mã chứng khoán[:\s]+([A-Z0-9]+)', text_content, re.IGNORECASE)
+                if code_match2:
+                    info['mã_chứng_khoán'] = code_match2.group(1).strip()
+                    extracted_code = code_match2.group(1)
+
+                # Mã ISIN
+                isin_match = re.search(r'Mã ISIN[:\s]+([A-Z0-9]+)', text_content, re.IGNORECASE)
+                if isin_match:
+                    info['mã_isin'] = isin_match.group(1).strip()
+
+                # Tên tổ chức đăng ký - thường ở sau "Tổng Công ty" hoặc "Công ty cổ phần"
+                org_match = re.search(r'(?:Tổng Công ty|Công ty cổ phần|CTCP|Ngân hàng)[^\n]+(?:thông báo|khai báo)', text_content)
+                if org_match:
+                    org_text = org_match.group(0)
+                    # Extract công ty name
+                    org_name_match = re.search(r'(?:Tổng Công ty|Công ty cổ phần|CTCP|Ngân hàng)([^-]+)', org_text)
+                    if org_name_match:
+                        info['tên_tổ_chức_đăng_ký'] = ('Tổng Công ty' if 'Tổng' in org_text else 'Công ty cổ phần') + org_name_match.group(1).strip()
+
             for label_div in label_divs:
                 # Get label text
                 label = label_div.get_text(strip=True).lower()
