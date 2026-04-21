@@ -61,14 +61,10 @@ jobs:
           import json
           import re
           import sys
-          import os
 
           try:
-            # Ensure docs folder exists
-            os.makedirs('docs', exist_ok=True)
-
             print("📝 Reading HTML file...")
-            with open('docs/index.html') as f:
+            with open('web/vps_automation_vhck.html') as f:
               html_content = f.read()
             print(f"✓ HTML file size: {len(html_content)} bytes")
 
@@ -92,7 +88,7 @@ jobs:
             print(f"✓ Embedded script created ({len(json_str)} bytes of JSON)")
 
             print("💾 Writing updated HTML file...")
-            with open('docs/index.html', 'w') as f:
+            with open('web/vps_automation_vhck.html', 'w') as f:
               f.write(html_content)
             print(f"✓ Updated HTML file written ({len(html_content)} bytes)")
 
@@ -114,7 +110,7 @@ jobs:
           git status --short
 
           echo "➕ Adding files to staging..."
-          git add data/vsd_records.json data/vsd_records.xlsx docs/index.html
+          git add data/vsd_records.json data/vsd_records.xlsx web/vps_automation_vhck.html
           echo "✓ Files staged"
 
           echo "🔍 Checking staged changes..."
@@ -136,6 +132,6 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
+          publish_dir: ./
           force_orphan: false
           cname: false
