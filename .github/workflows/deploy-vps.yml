@@ -60,27 +60,45 @@ jobs:
           python3 << 'SCRIPT'
           import json
           import re
+          import sys
 
-          with open('web/vps_automation_vhck.html') as f:
-            html_content = f.read()
+          try:
+            print("📝 Reading HTML file...")
+            with open('web/vps_automation_vhck.html') as f:
+              html_content = f.read()
+            print(f"✓ HTML file size: {len(html_content)} bytes")
 
-          with open('data/vsd_records.json') as f:
-            vsd_data = json.load(f)
+            print("📝 Reading JSON file...")
+            with open('data/vsd_records.json') as f:
+              vsd_data = json.load(f)
 
-          records_count = len(vsd_data.get('records', []))
+            records_count = len(vsd_data.get('records', []))
+            print(f"✓ Loaded {records_count} records from JSON")
 
-          # Remove old embedded data
-          html_content = re.sub(r'<script>\s*window\.EMBEDDED_DATA = .*?</script>', '', html_content, flags=re.DOTALL)
+            # Remove old embedded data
+            print("🧹 Removing old embedded data...")
+            html_content = re.sub(r'<script>\s*window\.EMBEDDED_DATA = .*?</script>', '', html_content, flags=re.DOTALL)
+            print("✓ Old embedded data removed")
 
-          # Create and insert new embedded script
-          json_str = json.dumps(vsd_data)
-          embedded = '<script>\n      window.EMBEDDED_DATA = ' + json_str + ';\n      console.log("Embedded data loaded: ' + str(records_count) + ' records");\n    </script>'
-          html_content = html_content.replace('</body>', embedded + '\n</body>')
+            # Create and insert new embedded script
+            print("📊 Creating new embedded script...")
+            json_str = json.dumps(vsd_data)
+            embedded = '\n    <script>\n      window.EMBEDDED_DATA = ' + json_str + ';\n      console.log("Embedded data loaded: ' + str(records_count) + ' records");\n    </script>'
+            html_content = html_content.replace('</body>', embedded + '\n</body>')
+            print(f"✓ Embedded script created ({len(json_str)} bytes of JSON)")
 
-          with open('web/vps_automation_vhck.html', 'w') as f:
-            f.write(html_content)
+            print("💾 Writing updated HTML file...")
+            with open('web/vps_automation_vhck.html', 'w') as f:
+              f.write(html_content)
+            print(f"✓ Updated HTML file written ({len(html_content)} bytes)")
 
-          print(f"Embedded {records_count} records into HTML")
+            print(f"\n✅ SUCCESS: Embedded {records_count} records into HTML")
+            sys.exit(0)
+          except Exception as e:
+            print(f"\n❌ ERROR: {str(e)}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
           SCRIPT
 
       - name: Commit changes
@@ -88,13 +106,26 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          git add data/vsd_records.json data/vsd_records.xlsx web/vps_automation_vhck.html 2>/dev/null || true
+          echo "📋 Checking for modified files..."
+          git status --short
+
+          echo "➕ Adding files to staging..."
+          git add data/vsd_records.json data/vsd_records.xlsx web/vps_automation_vhck.html
+          echo "✓ Files staged"
+
+          echo "🔍 Checking staged changes..."
+          git diff --cached --stat
 
           if git diff --quiet --cached; then
             echo "✅ No changes to commit"
           else
-            git commit -m "ci: update VSD data and embed into HTML (${{ steps.vsd_data.outputs.records_count }} records)" || true
-            git push origin main || echo "⚠️ Push skipped (may have conflicts)"
+            echo "📝 Committing changes..."
+            git commit -m "ci: update VSD data with embedded HTML (${{ steps.vsd_data.outputs.records_count }} records) - $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "✓ Changes committed"
+
+            echo "🚀 Pushing to remote..."
+            git push origin main
+            echo "✓ Pushed to GitHub"
           fi
 
       - name: Deploy to GitHub Pages
