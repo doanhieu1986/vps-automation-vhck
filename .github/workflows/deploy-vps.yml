@@ -57,41 +57,31 @@ jobs:
 
       - name: Embed data into HTML
         run: |
-          python3 << 'EOF'
+          python3 << 'SCRIPT'
           import json
-          import os
+          import re
 
-          # Read HTML
           with open('web/vps_automation_vhck.html') as f:
             html_content = f.read()
 
-          # Read VSD data
           with open('data/vsd_records.json') as f:
             vsd_data = json.load(f)
 
           records_count = len(vsd_data.get('records', []))
 
-          # Create embedded script
-          embedded_script = f"""
-    <script>
-      window.EMBEDDED_DATA = {json.dumps(vsd_data)};
-      console.log('Embedded data loaded: {records_count} records');
-    </script>
-  """
-
           # Remove old embedded data
-          import re
           html_content = re.sub(r'<script>\s*window\.EMBEDDED_DATA = .*?</script>', '', html_content, flags=re.DOTALL)
 
-          # Insert new embedded data
-          html_content = html_content.replace('</body>', embedded_script + '</body>')
+          # Create and insert new embedded script
+          json_str = json.dumps(vsd_data)
+          embedded = '<script>\n      window.EMBEDDED_DATA = ' + json_str + ';\n      console.log("Embedded data loaded: ' + str(records_count) + ' records");\n    </script>'
+          html_content = html_content.replace('</body>', embedded + '\n</body>')
 
-          # Write updated HTML
           with open('web/vps_automation_vhck.html', 'w') as f:
             f.write(html_content)
 
-          print(f"✅ Embedded {records_count} records into HTML")
-          EOF
+          print(f"Embedded {records_count} records into HTML")
+          SCRIPT
 
       - name: Commit changes
         run: |
