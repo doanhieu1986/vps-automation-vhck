@@ -61,10 +61,14 @@ jobs:
           import json
           import re
           import sys
+          import os
 
           try:
+            # Ensure docs folder exists
+            os.makedirs('docs', exist_ok=True)
+
             print("📝 Reading HTML file...")
-            with open('web/vps_automation_vhck.html') as f:
+            with open('docs/index.html') as f:
               html_content = f.read()
             print(f"✓ HTML file size: {len(html_content)} bytes")
 
@@ -82,13 +86,13 @@ jobs:
 
             # Create and insert new embedded script
             print("📊 Creating new embedded script...")
-            json_str = json.dumps(vsd_data)
+            json_str = json.dumps(vsd_data, ensure_ascii=False)
             embedded = '\n    <script>\n      window.EMBEDDED_DATA = ' + json_str + ';\n      console.log("Embedded data loaded: ' + str(records_count) + ' records");\n    </script>'
             html_content = html_content.replace('</body>', embedded + '\n</body>')
             print(f"✓ Embedded script created ({len(json_str)} bytes of JSON)")
 
             print("💾 Writing updated HTML file...")
-            with open('web/vps_automation_vhck.html', 'w') as f:
+            with open('docs/index.html', 'w') as f:
               f.write(html_content)
             print(f"✓ Updated HTML file written ({len(html_content)} bytes)")
 
@@ -110,7 +114,7 @@ jobs:
           git status --short
 
           echo "➕ Adding files to staging..."
-          git add data/vsd_records.json data/vsd_records.xlsx web/vps_automation_vhck.html
+          git add data/vsd_records.json data/vsd_records.xlsx docs/index.html
           echo "✓ Files staged"
 
           echo "🔍 Checking staged changes..."
@@ -132,6 +136,6 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./
+          publish_dir: ./docs
           force_orphan: false
           cname: false
