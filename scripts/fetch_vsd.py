@@ -713,7 +713,9 @@ class VSDFetcher:
                             'url': news['url'],
                             'date': final_date_str,
                             'collected_date': final_date_str,
-                            'source': 'VSD'
+                            'collected_at': final_date_str,
+                            'source': 'VSD',
+                            'status': 'pending'
                         }
 
                         if detail:
@@ -732,7 +734,9 @@ class VSDFetcher:
                                 'url': news['url'],
                                 'date': news['date'],
                                 'collected_date': news['date'],
-                                'source': 'VSD'
+                                'collected_at': news['date'],
+                                'source': 'VSD',
+                                'status': 'pending'
                             }
 
             # Extract từ tất cả records (concurrent)
@@ -808,8 +812,11 @@ class VSDFetcher:
                             merged_data.append(existing_record)
                             added_count += 1
                         else:
-                            # Nếu code trùng, replace với version mới
-                            logger.debug(f"  ! Updating {existing_record.get('code')} with new data")
+                            # Nếu code trùng, preserve status từ old record
+                            code = existing_record.get('code')
+                            if code in new_codes and existing_record.get('status'):
+                                new_codes[code]['status'] = existing_record.get('status')
+                            logger.debug(f"  ! Updating {code} with new data (preserved status: {existing_record.get('status')})")
 
                     logger.info(f"  ✓ Merged: {len(result_data)} new + {added_count} added existing = {len(merged_data)} total")
                     total_count = len(merged_data)
