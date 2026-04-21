@@ -777,21 +777,6 @@
       let currentFilter = 'all';
       let selectedRecord = null;
 
-      // Load data on page load
-      document.addEventListener('DOMContentLoaded', function() {
-          loadDataFromFile();
-          
-          // Add event listeners for date inputs
-          const startDateInput = document.getElementById('startDate');
-          const endDateInput = document.getElementById('endDate');
-          if (startDateInput) {
-              startDateInput.addEventListener('change', filterTable);
-          }
-          if (endDateInput) {
-              endDateInput.addEventListener('change', filterTable);
-          }
-      });
-
       function loadDataFromFile() {
           // First try embedded data
           if (window.EMBEDDED_DATA && window.EMBEDDED_DATA.records) {
@@ -996,15 +981,23 @@
           const pending = allRecords.filter(r => r.status === 'pending').length;
           const confirmed = allRecords.filter(r => r.status === 'confirmed').length;
           const rejected = allRecords.filter(r => r.status === 'rejected').length;
-          
-          document.getElementById('totalRecords').textContent = total;
-          if (document.getElementById('pendingCount')) document.getElementById('pendingCount').textContent = pending;
-          if (document.getElementById('confirmedCount')) document.getElementById('confirmedCount').textContent = confirmed;
-          if (document.getElementById('rejectedCount')) document.getElementById('rejectedCount').textContent = rejected;
-          
+
+          const totalEl = document.getElementById('totalRecords');
+          if (totalEl) totalEl.textContent = total;
+
+          const pendingEl = document.getElementById('pendingCount');
+          if (pendingEl) pendingEl.textContent = pending;
+
+          const confirmedEl = document.getElementById('confirmedCount');
+          if (confirmedEl) confirmedEl.textContent = confirmed;
+
+          const rejectedEl = document.getElementById('rejectedCount');
+          if (rejectedEl) rejectedEl.textContent = rejected;
+
           // Update last update time
           if (window.EMBEDDED_DATA && window.EMBEDDED_DATA.date) {
-              document.getElementById('lastUpdate').textContent = 'Lần cập nhật cuối: ' + window.EMBEDDED_DATA.date;
+              const lastUpdateEl = document.getElementById('lastUpdate');
+              if (lastUpdateEl) lastUpdateEl.textContent = 'Lần cập nhật cuối: ' + window.EMBEDDED_DATA.date;
           }
       }
 
@@ -1047,14 +1040,29 @@
               } else {
                   console.log('ERROR: EMBEDDED_DATA not found!');
               }
-              
+
               const tbody = document.getElementById('tableBody');
               if (tbody) {
                   console.log('tableBody element found');
               } else {
                   console.log('ERROR: tableBody element NOT found!');
               }
-              
+
+              // Set up event listeners for filters
+              const startDateInput = document.getElementById('startDate');
+              const endDateInput = document.getElementById('endDate');
+              const statusFilter = document.getElementById('statusFilter');
+
+              if (startDateInput) {
+                  startDateInput.addEventListener('change', filterTable);
+              }
+              if (endDateInput) {
+                  endDateInput.addEventListener('change', filterTable);
+              }
+              if (statusFilter) {
+                  statusFilter.addEventListener('change', filterTable);
+              }
+
               loadDataFromFile();
               console.log('loadDataFromFile() executed');
           } catch(e) {
