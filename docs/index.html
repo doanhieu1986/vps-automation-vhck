@@ -1037,15 +1037,40 @@
       }
     
       // Auto-initialize on page load
+      console.log('SCRIPT START: document.readyState =', document.readyState);
+      
+      function initPage() {
+          console.log('initPage() called');
+          try {
+              if (window.EMBEDDED_DATA) {
+                  console.log('EMBEDDED_DATA found, records:', window.EMBEDDED_DATA.records.length);
+              } else {
+                  console.log('ERROR: EMBEDDED_DATA not found!');
+              }
+              
+              const tbody = document.getElementById('tableBody');
+              if (tbody) {
+                  console.log('tableBody element found');
+              } else {
+                  console.log('ERROR: tableBody element NOT found!');
+              }
+              
+              loadDataFromFile();
+              console.log('loadDataFromFile() executed');
+          } catch(e) {
+              console.error('ERROR in initPage:', e);
+          }
+      }
+      
       if (document.readyState === 'loading') {
+          console.log('DOM still loading, waiting for DOMContentLoaded');
           document.addEventListener('DOMContentLoaded', function() {
               console.log('DOMContentLoaded fired');
-              loadDataFromFile();
+              initPage();
           });
       } else {
-          // DOM already loaded
           console.log('DOM already loaded, running immediately');
-          loadDataFromFile();
+          initPage();
       }
 </script>
 </body>
