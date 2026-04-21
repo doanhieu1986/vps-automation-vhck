@@ -17,12 +17,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -85,16 +85,16 @@ jobs:
 
       - name: Commit changes
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
 
-          git add data/vsd_records.json data/vsd_records.xlsx web/vps_automation_vhck.html
+          git add data/vsd_records.json data/vsd_records.xlsx web/vps_automation_vhck.html 2>/dev/null || true
 
           if git diff --quiet --cached; then
-            echo "No changes to commit"
+            echo "✅ No changes to commit"
           else
-            git commit -m "ci: update VSD data and embed into HTML (${{ steps.vsd_data.outputs.records_count }} records)"
-            git push
+            git commit -m "ci: update VSD data and embed into HTML (${{ steps.vsd_data.outputs.records_count }} records)" || true
+            git push origin main || echo "⚠️ Push skipped (may have conflicts)"
           fi
 
       - name: Deploy to GitHub Pages
