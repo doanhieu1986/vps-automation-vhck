@@ -1020,6 +1020,14 @@ def main():
                         if excel_file and os.path.exists(excel_file):
                             df_excel = pd.read_excel(excel_file, sheet_name='Tin chứng khoán')
                             all_records = df_excel.to_dict('records')
+
+                            # Convert NaN to None for JSON serialization
+                            import math
+                            for record in all_records:
+                                for key, value in record.items():
+                                    if isinstance(value, float) and math.isnan(value):
+                                        record[key] = None
+
                             logger.info(f"  📊 Using {len(all_records)} records from Excel merge")
                         else:
                             all_records = result.get('data', [])
