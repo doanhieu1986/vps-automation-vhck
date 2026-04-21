@@ -941,7 +941,11 @@
               document.getElementById('detailUrl').textContent = 'Xem trên nguồn gốc';
           }
 
-          if (selectedRecord.title) {
+          // Display full article text content from VSD
+          if (selectedRecord.text_content) {
+              document.getElementById('fullTextSection').style.display = 'block';
+              document.getElementById('detailFullText').textContent = selectedRecord.text_content;
+          } else if (selectedRecord.title) {
               document.getElementById('fullTextSection').style.display = 'block';
               document.getElementById('detailFullText').textContent = escapeHtml(selectedRecord.title);
           } else {
