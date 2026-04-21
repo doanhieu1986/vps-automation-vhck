@@ -218,7 +218,9 @@ class VSDFetcher:
                 'chứng_quyền': None,
                 'chấp_thuận_đăng_ký': None,
                 'tin_húy': None,
-                'thay_đổi': None
+                'thay_đổi': None,
+                # Nội dung chính của bài viết
+                'text_content': None
             }
 
             extracted_code = None
@@ -295,7 +297,8 @@ class VSDFetcher:
             # Extract 9 new quyền fields từ text content + tiêu đề với các giá trị cụ thể
             # Sử dụng keyword mapping để tìm các giá trị cụ thể trong text
             # Include title trong search để bắt được những trang dạng danh sách
-            search_text = text_content + " " + soup.find('title', string=True).get_text() if soup.find('title') else text_content
+            title_tag = soup.find('title')
+            search_text = text_content + (" " + title_tag.get_text() if title_tag else "")
 
             # 1. Quyền họp đại hội cổ đông
             dhdc_map = {
@@ -424,8 +427,11 @@ class VSDFetcher:
                     'hủy ngày đăng ký',
                     'cancel registration date'
                 ],
-                'Hủy danh sách người sử hữu chứng khoán': [
+                'Hủy danh sách người sở hữu chứng khoán': [
+                    'hủy danh sách người sở hữu',
+                    'hủy danh sách người sử hữu',
                     'hủy danh sách',
+                    'cancel ownership list',
                     'cancel list'
                 ],
                 'Hủy đăng ký chứng khoán, trái phiếu': [
@@ -461,6 +467,9 @@ class VSDFetcher:
                 date_str = update_match.group(1)
                 actual_update_date = self.parse_date(date_str)
                 logger.debug(f"  ✓ Found actual update date: {date_str}")
+
+            # Lưu nội dung chính của bài viết (dùng cho hiển thị full text)
+            info['text_content'] = text_content
 
             return info, extracted_code, actual_update_date
 

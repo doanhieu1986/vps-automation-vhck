@@ -739,7 +739,7 @@
                 </div>
 
                 <div class="detail-section" id="fullTextSection" style="display: none;">
-                    <div class="section-title">Nội Dung Đầy Đủ</div>
+                    <div class="section-title">Nội Dung Chính Của Tin Tức</div>
                     <div class="full-text-section">
                         <div class="full-text" id="detailFullText"></div>
                     </div>
@@ -854,12 +854,30 @@
 
                 let matchesDate = true;
                 if (startDate || endDate) {
-                    const recordDate = new Date(record.collected_date || record.date);
-                    if (startDate && recordDate < startDate) matchesDate = false;
-                    if (endDate) {
-                        const endDateWithTime = new Date(endDate);
-                        endDateWithTime.setHours(23, 59, 59, 999);
-                        if (recordDate > endDateWithTime) matchesDate = false;
+                    // Parse collected_date từ định dạng DD/MM/YYYY
+                    const dateStr = record.collected_date || record.date;
+                    let recordDate = null;
+
+                    if (dateStr && typeof dateStr === 'string') {
+                        const parts = dateStr.split('/');
+                        if (parts.length === 3) {
+                            // Định dạng DD/MM/YYYY
+                            recordDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                        } else {
+                            // Thử YYYY-MM-DD hoặc các định dạng khác
+                            recordDate = new Date(dateStr);
+                        }
+                    }
+
+                    if (recordDate && !isNaN(recordDate)) {
+                        if (startDate && recordDate < startDate) matchesDate = false;
+                        if (endDate) {
+                            const endDateWithTime = new Date(endDate);
+                            endDateWithTime.setHours(23, 59, 59, 999);
+                            if (recordDate > endDateWithTime) matchesDate = false;
+                        }
+                    } else {
+                        matchesDate = false; // Nếu không thể parse ngày, không khớp
                     }
                 }
 
@@ -921,9 +939,9 @@
                 document.getElementById('detailUrl').textContent = 'Xem trên nguồn gốc';
             }
 
-            if (selectedRecord.title) {
+            if (selectedRecord.text_content) {
                 document.getElementById('fullTextSection').style.display = 'block';
-                document.getElementById('detailFullText').textContent = escapeHtml(selectedRecord.title);
+                document.getElementById('detailFullText').textContent = escapeHtml(selectedRecord.text_content);
             } else {
                 document.getElementById('fullTextSection').style.display = 'none';
             }

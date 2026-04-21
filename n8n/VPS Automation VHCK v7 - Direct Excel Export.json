@@ -1,0 +1,156 @@
+{
+  "name": "VPS Automation VHCK v7 - Direct Excel Export",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        64,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { spawn } = require('child_process');\n\nreturn new Promise((resolve) => {\n  const diagProcess = spawn('which', ['python3']);\n  let pythonPath = '';\n\n  diagProcess.stdout.on('data', (data) => {\n    pythonPath += data.toString().trim();\n  });\n\n  diagProcess.on('close', () => {\n    const scriptPath = '/app/vps-automation-vhck/scripts/fetch_vsd.py';\n    const pythonExe = pythonPath || 'python3';\n    const pythonProcess = spawn(pythonExe, [scriptPath]);\n    let output = '';\n    let errorOutput = '';\n\n    pythonProcess.stdout.on('data', (data) => {\n      output += data.toString();\n    });\n\n    pythonProcess.stderr.on('data', (data) => {\n      errorOutput += data.toString();\n    });\n\n    pythonProcess.on('close', (code) => {\n      if (code !== 0) {\n        resolve([{ json: { error: `Script exited with code ${code}`, stderr: errorOutput, status: 'error' } }]);\n        return;\n      }\n      try {\n        const vsdData = JSON.parse(output);\n        resolve([{ json: vsdData }]);\n      } catch (e) {\n        resolve([{ json: { error: 'Failed to parse JSON output', message: e.message, status: 'error' } }]);\n      }\n    });\n\n    pythonProcess.on('error', (error) => {\n      resolve([{ json: { error: error.message, pythonPath: pythonPath, status: 'error' } }]);\n    });\n  });\n})"
+      },
+      "id": "node-fetch-vsd",
+      "name": "Fetch VSD (Tin Tuc)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        288,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst input = $input.first().json;\nconst excelInfo = input.excel_info;\nconst status = input.status;\n\nif (status !== 'success') {\n  return [{ json: { status: 'error', message: input.message || 'Fetch failed', details: input } }];\n}\n\nif (!excelInfo || excelInfo.status !== 'success') {\n  return [{ json: { status: 'error', message: 'Excel creation failed', details: excelInfo } }];\n}\n\nconst path = excelInfo.file;\n\ntry {\n  if (fs.existsSync(path)) {\n    const stats = fs.statSync(path);\n    return [{ json: { \n      status: 'success', \n      message: `Excel file created successfully: ${excelInfo.message}`,\n      file: path, \n      file_size: stats.size,\n      records_count: excelInfo.records_count,\n      timestamp: excelInfo.timestamp\n    } }];\n  } else {\n    return [{ json: { status: 'error', message: `File not found: ${path}` } }];\n  }\n} catch (error) {\n  return [{ json: { status: 'error', message: error.message } }];\n}"
+      },
+      "id": "node-save-result",
+      "name": "Verify Excel File",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        512,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst input = $input.first().json;\nconst jsonInfo = input.json_info || {};\n\nif (jsonInfo.status !== 'success') {\n  return [{ json: { status: 'warning', message: 'JSON file not created', details: jsonInfo } }];\n}\n\nconst jsonPath = jsonInfo.file;\n\ntry {\n  if (fs.existsSync(jsonPath)) {\n    const stats = fs.statSync(jsonPath);\n    const jsonData = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));\n    \n    return [{ json: { \n      status: 'success',\n      message: `JSON file synchronized: ${jsonInfo.records_count} records`,\n      file: jsonPath,\n      file_size: stats.size,\n      records_count: jsonInfo.records_count,\n      html_status: 'ready_to_load',\n      html_url: 'http://localhost:8000/web/vps_automation_vhck.html',\n      timestamp: new Date().toISOString()\n    } }];\n  } else {\n    return [{ json: { status: 'error', message: `JSON file not found: ${jsonPath}` } }];\n  }\n} catch (error) {\n  return [{ json: { status: 'error', message: error.message } }];\n}"
+      },
+      "id": "node-inject-html",
+      "name": "Inject Data to HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        736,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const https = require('https');\nconst fs = require('fs');\n\nconst token = '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';\nconst owner = 'doanhieu1986';\nconst repo = 'vps-automation-vhck';\n\nconst pushFile = (path, content, message) => {\n  return new Promise((resolve, reject) => {\n    const getShaUrl = `/repos/${owner}/${repo}/contents/${path}`;\n    \n    // First, get existing SHA if file exists\n    const getReq = https.request({\n      hostname: 'api.github.com',\n      path: getShaUrl,\n      method: 'GET',\n      headers: {\n        'Authorization': `token ${token}`,\n        'Accept': 'application/vnd.github.v3+json',\n        'User-Agent': 'n8n'\n      }\n    }, (res) => {\n      let data = '';\n      res.on('data', chunk => data += chunk);\n      res.on('end', () => {\n        let sha = '';\n        try {\n          const json = JSON.parse(data);\n          sha = json.sha || '';\n        } catch (e) {}\n        \n        // Now push the file\n        const body = JSON.stringify({\n          message: message,\n          content: content,\n          sha: sha,\n          branch: 'main'\n        });\n        \n        const pushReq = https.request({\n          hostname: 'api.github.com',\n          path: getShaUrl,\n          method: 'PUT',\n          headers: {\n            'Authorization': `token ${token}`,\n            'Accept': 'application/vnd.github.v3+json',\n            'Content-Type': 'application/json',\n            'Content-Length': body.length,\n            'User-Agent': 'n8n'\n          }\n        }, (res) => {\n          let respData = '';\n          res.on('data', chunk => respData += chunk);\n          res.on('end', () => {\n            if (res.statusCode >= 400) {\n              reject(new Error(`GitHub API error: ${res.statusCode} - ${respData}`));\n            } else {\n              resolve(respData);\n            }\n          });\n        });\n        \n        pushReq.on('error', reject);\n        pushReq.write(body);\n        pushReq.end();\n      });\n    });\n    \n    getReq.on('error', reject);\n    getReq.end();\n  });\n};\n\ntry {\n  const htmlPath = '/app/vps-automation-vhck/web/vps_automation_vhck.html';\n  const jsonPath = '/app/vps-automation-vhck/data/vsd_records.json';\n  \n  const htmlContent = fs.readFileSync(htmlPath, 'utf-8');\n  const jsonContent = fs.readFileSync(jsonPath, 'utf-8');\n  \n  const htmlBase64 = Buffer.from(htmlContent).toString('base64');\n  const jsonBase64 = Buffer.from(jsonContent).toString('base64');\n  \n  return new Promise(async (resolve) => {\n    try {\n      await pushFile('docs/index.html', htmlBase64, 'Update VSD report - ' + new Date().toISOString());\n      await pushFile('docs/vsd_records.json', jsonBase64, 'Update VSD data - ' + new Date().toISOString());\n      \n      resolve([{\n        json: {\n          status: 'success',\n          message: 'Files deployed to GitHub Pages',\n          github_pages_url: 'https://doanhieu1986.github.io/vps-automation-vhck/docs/index.html',\n          timestamp: new Date().toISOString()\n        }\n      }]);\n    } catch (error) {\n      resolve([{\n        json: {\n          status: 'error',\n          message: error.message\n        }\n      }]);\n    }\n  });\n} catch (error) {\n  return [{\n    json: {\n      status: 'error',\n      message: error.message\n    }\n  }];\n}"
+      },
+      "id": "deploy-github",
+      "name": "Deploy to GitHub Pages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        960,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\nreturn [{ json: { \n  status: 'success',\n  message: 'Workflow hoàn thành! Báo cáo đã được đẩy lên GitHub Pages',\n  github_pages_url: input.github_pages_url || 'https://doanhieu1986.github.io/vps-automation-vhck/docs/index.html',\n  details: input,\n  next_step: 'Báo cáo có thể xem được tại GitHub Pages link',\n  timestamp: new Date().toISOString()\n} }]"
+      },
+      "id": "node-completion",
+      "name": "Workflow Complete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        208
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch VSD (Tin Tuc)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch VSD (Tin Tuc)": {
+      "main": [
+        [
+          {
+            "node": "Verify Excel File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Excel File": {
+      "main": [
+        [
+          {
+            "node": "Inject Data to HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inject Data to HTML": {
+      "main": [
+        [
+          {
+            "node": "Deploy to GitHub Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy to GitHub Pages": {
+      "main": [
+        [
+          {
+            "node": "Workflow Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "9b92320c-1b77-4d9b-8e99-7b9ab10e0729",
+  "meta": {
+    "instanceId": "3593997ae0ebe5f56692a957ceab0f91ff102f35505e9b50cb45630a42cdadde"
+  },
+  "id": "gSi7vlUxGOvRrGVF",
+  "tags": []
+}
