@@ -325,19 +325,25 @@
         }
 
         .detail-section {
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             display: flex;
             flex-direction: column;
             min-height: 0;
+        }
+
+        /* Override margin for right panel (full text section) */
+        #fullTextSection {
+            margin-bottom: 0;
         }
 
         .section-title {
             font-size: 16px;
             font-weight: 600;
             color: #38bdf8;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             padding-bottom: 10px;
             border-bottom: 1px solid #334155;
+            flex-shrink: 0;
         }
 
         .detail-grid {
@@ -401,10 +407,10 @@
 
         .full-text-section {
             background: #0f172a;
-            padding: 20px;
+            padding: 15px;
             border-radius: 6px;
             border-left: 3px solid #0284c7;
-            margin-top: 20px;
+            margin-top: 10px;
             flex: 1;
             display: flex;
             flex-direction: column;
