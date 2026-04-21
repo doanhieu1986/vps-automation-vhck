@@ -1,38 +1,399 @@
-# **Quy trình xử lý cập nhật thông tin quyền của mã chứng khoán lên hệ thống BO**
-- **Bước 1:** Đọc file chứa danh sách các mã chứng khoán (chỉ riêng với Trái phiếu) cần xử lý tại `symbol.md`
-- **Bước 2:** Gọi python script hoặc call API để thực hiện lấy thông tin quyền của Cổ phiếu và Trái phiếu trên các nguồn VSD (`https://www.vsd.vn/vi/`), HNX (`https://www.hnx.vn/vi-vn/`), HOSE (`https://www.hsx.vn/vi/`), theo nguyên tắc:
-    - Lấy thông tin quyền của tất cả các mã cổ phiếu và các mã trái phiếu được chỉ định tại `symbol.md`
-    - Tra cứu thông tin trên VSD trước. Thông tin lấy tại mục tin tức thị trường cơ sở (`https://www.vsd.vn/vi/tin-thi-truong-co-so`). Trường hợp không có thì tìm kiếm tiếp tục trên HNX và HOSE để tìm kiếm thêm thông tin.
-    - Thông tin lấy trên HNX:
-        - Tại Tab Trái phiếu → Niêm yết → Danh sách trái phiếu → Tìm mã trái phiếu → Mở link → lấy thông tin bổ sung,
-        - Tại Tab Cổ phiếu → Cổ phiếu niêm yết → Thông tin công bố → Tin từ Sở → Click tin tức → lấy thông tin bổ sung (file PDF, ảnh)
-    - Thông tin lấy trên HOSE: Lấy tại mục Niêm yết → CW → Tìm mã CW → Tab Tin tức → Click Tin tức → lấy thông tin bổ sung (file PDF, ảnh)
-    - Đối với trái phiếu chỉ lấy thông tin của các mã có số dư tại VPS
-    - Các thông tin cần lấy bao gồm:
-        - Đối với Cổ phiếu: 
-            - Quyền nhận cổ tức bằng tiền / bằng cổ phiếu / thưởng cổ phiếu.
-            - Quyền mua cổ phiếu phát hành thêm (right issue).
-            - Quyền bỏ phiếu (đại hội cổ đông).
-            - Quyền tách/gộp cổ phiếu, thay đổi mệnh giá, đổi tên.
-            - Quyền hoán đổi, sáp nhập, chia tách công ty.
-            - Quyền chuyển nhượng quyền mua / quyền tham gia.
-        - Đối với Trái phiếu: 
-            - Quyền nhận lãi định kỳ / trả gốc khi đáo hạn.
-            - Quyền chuyển đổi (đối với trái phiếu chuyển đổi).
-            - Các quyền khác (mua lại, hoán đổi…).
-        - Tên tổ chức đăng ký chứng khoán
-        - Tên chứng khoán
-        - Mã chứng khoán
-        - Mã ISIN
-        - Nơi giao dịch
-        - Loại chứng khoán
-        - Ngày đăng ký cuối cùng
-        - Lý do mục đích
-        - Tỷ lệ thực hiện
-        - Thời gian thực hiện
-        - Địa điểm thực hiện
-    - Tần suất lấy thông tin: 2 lần/ngày vào 12h00 và 17h00
-- **Bước 3:** Lưu thông tin vào file `result.md` 
-- **Bước 4:** Hiển thị thông tin kết quả thu thập được lên giao diện web, mục đích để VHCK review thông tin và xác nhận việc sẽ nhập thông tin vào BO. Thông tin hiển thị cần có cả link để xem thông tin gốc hoặc ảnh, hoặc full text để VHCK có thể dễ dàng tra cứu và xác nhận thông tin.
-- **Bước 5:** Sau khi VHCK xác nhận thông tin, hệ thống sẽ tự động cập nhật trạng thái `result.md` thành `confirmed` và hiển thị trạng thái `confirmed` trên giao diện web.
-- **Bước 6:** Nếu thông tin sai lệch cho phép VHCK khai báo lại thông tin trực tiếp để cập nhật `result.md` và thực hiện lại bước 5. Sau khi VHCK xác nhận thông tin, hệ thống sẽ tự động cập nhật trạng thái `result.md` thành `confirmed` và hiển thị trạng thái `confirmed` trên giao diện web. Nếu VHCK không xác nhận thông tin, hệ thống sẽ hiển thị trạng thái `rejected` trên giao diện web.
+# Quy Trình Xử Lý VPS Automation VHCK v8
+
+## 📋 Tổng Quan
+
+Hệ thống tự động 100% - không cần can thiệp thủ công trong quy trình chính.
+
+**Tần suất:** Hàng ngày (có thể setup lặp lại 2 lần/ngày tại 12h00 và 17h00)
+
+---
+
+## 🔄 Luồng Chi Tiết
+
+### **Bước 1: Trigger Workflow**
+
+Workflow được trigger bởi:
+- 🔘 Manual trigger từ n8n UI
+- 📅 Schedule (cron job - cấu hình trong n8n)
+- 🔗 Webhook (có thể setup từ bên ngoài)
+
+```
+┌─────────────────┐
+│ Manual Trigger  │
+│   (n8n UI)      │
+└────────┬────────┘
+         │
+         ▼
+    [START WORKFLOW]
+```
+
+---
+
+### **Bước 2: Fetch VSD Data**
+
+**Node:** `Fetch VSD (Tin Tuc)` → runs `/scripts/fetch_vsd.py`
+
+**Quy trình scraping:**
+
+```python
+1. Kết nối VSD (https://www.vsd.vn/vi/tin-thi-truong-co-so)
+   └─ Lấy VPToken từ meta tag
+
+2. Fetch danh sách tin tức (phân trang nếu cần)
+   └─ Lọc theo KEEP_DAYS (mặc định = 7 ngày)
+   
+3. Cho mỗi tin tức:
+   └─ Extract mã chứng khoán
+   └─ Mở link & scrape chi tiết:
+      • Tên tổ chức đăng ký
+      • Tên chứng khoán
+      • Mã ISIN
+      • Loại chứng khoán
+      • Nơi giao dịch
+      • Các quyền (cổ tức, mua, hoán đổi, etc.)
+      • Mục đích & lý do đăng ký
+      • Thời gian & địa điểm thực hiện
+      
+4. Merge dữ liệu mới với cũ:
+   └─ Giữ lại records cũ (status unchanged)
+   └─ Thêm records mới (status='pending')
+   
+5. Export JSON → `/data/vsd_records.json`
+
+6. Export Excel → `/data/vsd_records.xlsx`
+   └─ Cấu trúc giống JSON
+   └─ Định dạng đẹp, dễ xem
+
+7. Return JSON result
+   └─ Status: success/error
+   └─ Message: log & stats
+   └─ excel_info: file path & record count
+   └─ json_info: file path & record count
+```
+
+**Input:** Không có (fetch tất cả từ VSD)
+
+**Output:**
+```json
+{
+  "status": "success",
+  "date": "2026-04-21",
+  "records": [...],
+  "excel_info": {
+    "status": "success",
+    "file": "/app/vps-automation-vhck/data/vsd_records.xlsx",
+    "records_count": 330,
+    "message": "Created with 330 records"
+  },
+  "json_info": {
+    "status": "success",
+    "file": "/app/vps-automation-vhck/data/vsd_records.json",
+    "records_count": 330,
+    "message": "Created with 330 records"
+  }
+}
+```
+
+---
+
+### **Bước 3: Verify Excel File**
+
+**Node:** `Verify Excel File`
+
+**Quy trình:**
+```
+Input: JSON result từ Fetch VSD
+  │
+  ├─ Check: status === 'success'? 
+  │   └─ NO → Return error
+  │
+  ├─ Check: excel_info exists?
+  │   └─ NO → Return error
+  │
+  ├─ Check: file exists?
+  │   └─ NO → Return error
+  │
+  └─ Check: file readable?
+      └─ NO → Return error
+      └─ YES → Continue
+      
+Output: File metadata
+```
+
+**Output:**
+```json
+{
+  "status": "success",
+  "file": "/app/vps-automation-vhck/data/vsd_records.json",
+  "records_count": 330,
+  "timestamp": "2026-04-21T10:30:00Z"
+}
+```
+
+---
+
+### **Bước 4: Embed JSON into HTML**
+
+**Node:** `Embed JSON into HTML`
+
+**Quy trình:**
+```
+Input: File metadata từ Verify
+  │
+  ├─ Read JSON: /data/vsd_records.json
+  │
+  ├─ Read HTML: /web/vps_automation_vhck.html
+  │
+  ├─ Remove old embedded data
+  │   └─ Regex: <script>...window.EMBEDDED_DATA...</script>
+  │
+  ├─ Append new embedded data:
+  │   └─ <script>window.EMBEDDED_DATA = {...};</script>
+  │
+  ├─ Write updated HTML → /web/vps_automation_vhck.html
+  │
+  └─ Output: Embedded successfully
+```
+
+**Output:**
+```json
+{
+  "status": "success",
+  "message": "Embedded 330 records into HTML",
+  "records_embedded": 330,
+  "html_size": 1400000,
+  "timestamp": "2026-04-21T10:30:30Z"
+}
+```
+
+---
+
+### **Bước 5: Commit to GitHub**
+
+**Node:** `Commit to GitHub` 
+
+**Quy trình:**
+```
+Input: Embedded HTML metadata
+  │
+  ├─ Load GitHub token: .github-token.json
+  │   └─ token, owner, repo
+  │
+  ├─ Commit 1: JSON file
+  │   ├─ Read: /data/vsd_records.json
+  │   ├─ Base64 encode
+  │   └─ GitHub API PUT /repos/{owner}/{repo}/contents/data/vsd_records.json
+  │       └─ Message: "ci: update VSD data (330 records)"
+  │
+  ├─ Commit 2: HTML file  
+  │   ├─ Read: /web/vps_automation_vhck.html
+  │   ├─ Base64 encode
+  │   └─ GitHub API PUT /repos/{owner}/{repo}/contents/web/vps_automation_vhck.html
+  │       └─ Message: "ci: update HTML with embedded data (330 records)"
+  │
+  └─ Return: Commit result
+```
+
+**Output:**
+```json
+{
+  "status": "success",
+  "message": "Committed 330 records to GitHub",
+  "github_url": "https://github.com/doanhieu1986/vps-automation-vhck",
+  "records_committed": 330,
+  "timestamp": "2026-04-21T10:31:00Z"
+}
+```
+
+---
+
+### **Bước 6: Push to GitHub Pages**
+
+**Node:** `Push to GitHub`
+
+**Quy trình:**
+```
+Input: Commit result
+  │
+  ├─ Copy HTML → /docs/index.html
+  │   └─ GitHub Pages serves from /docs folder
+  │
+  └─ GitHub auto-deploys to GitHub Pages:
+     └─ https://doanhieu1986.github.io/vps-automation-vhck/
+```
+
+**Output:**
+```json
+{
+  "status": "success",
+  "message": "Workflow completed! Data committed to GitHub",
+  "github_url": "https://github.com/doanhieu1986/vps-automation-vhck",
+  "pages_url": "https://doanhieu1986.github.io/vps-automation-vhck/",
+  "records_committed": 330,
+  "timestamp": "2026-04-21T10:31:30Z"
+}
+```
+
+---
+
+## 📊 Data Flow Diagram
+
+```
+                    ┌─────────────────────┐
+                    │  n8n Workflow v8    │
+                    │  Manual/Schedule    │
+                    └──────────┬──────────┘
+                               │
+                ┌──────────────▼──────────────┐
+                │ 1. Fetch VSD (Python)       │
+                │    fetch_vsd.py KEEP_DAYS=7│
+                │    Output: JSON + Excel     │
+                └──────────────┬──────────────┘
+                               │
+                ┌──────────────▼──────────────┐
+                │ 2. Verify Excel            │
+                │    Check files exist       │
+                └──────────────┬──────────────┘
+                               │
+                ┌──────────────▼──────────────┐
+                │ 3. Embed JSON→HTML          │
+                │    Merge data into page     │
+                └──────────────┬──────────────┘
+                               │
+                ┌──────────────▼──────────────┐
+                │ 4. Commit to GitHub         │
+                │    Push JSON + HTML         │
+                └──────────────┬──────────────┘
+                               │
+                ┌──────────────▼──────────────┐
+                │ 5. Deploy to GitHub Pages   │
+                │    Auto-published           │
+                └──────────────┬──────────────┘
+                               │
+                    ┌──────────▼─────────┐
+                    │  🌐 Live Dashboard  │
+                    │ https://doanhieu... │
+                    └────────────────────┘
+```
+
+---
+
+## 💾 Output Files
+
+| File | Purpose | Auto-generated | Format |
+|------|---------|---|---|
+| `/data/vsd_records.json` | Main data store | ✅ Yes | JSON |
+| `/data/vsd_records.xlsx` | Excel export | ✅ Yes | Excel |
+| `/web/vps_automation_vhck.html` | Source HTML | ✅ Updated | HTML |
+| `/docs/index.html` | GitHub Pages | ✅ Synced | HTML |
+| `/index.html` | Backup copy | ✅ Synced | HTML |
+
+---
+
+## 🔍 Data Processing
+
+### Field Extraction Logic
+Từ text content của VSD news, extract:
+
+```
+"Tên tổ chức đăng ký:" → tên_tổ_chức_đăng_ký
+"Tên chứng khoán:" → tên_chứng_khoán
+"Mã chứng khoán:" → code (mã CK)
+"Mã ISIN:" → mã_isin
+"Nơi giao dịch:" → nơi_giao_dịch
+"Loại chứng khoán:" → loại_chứng_khoán
+"Ngày đăng ký:" → ngày_đăng_ký_cuối
+"Lý do/Mục đích:" → lý_do_mục_đích
+"Tỷ lệ thực hiện:" → tỷ_lệ_thực_hiện
+"Thời gian thực hiện:" → thời_gian_thực_hiện
+"Địa điểm thực hiện:" → địa_điểm_thực_hiện
+...
+```
+
+### Status Management
+
+```
+                   ┌─────────────┐
+                   │   pending   │  🟠 Chờ xử lý
+                   │ (dữ liệu    │
+                   │  mới)       │
+                   └──────┬──────┘
+                          │
+                ┌─────────▼─────────┐
+                │  VHCK Review UI   │
+                │  (Dashboard)      │
+                └────┬──────┬───────┘
+                     │      │
+         ┌───────────┘      └──────────┐
+         │                             │
+    ┌────▼──────┐           ┌─────────▼──┐
+    │ confirmed │ 🟢        │  rejected  │ 🔴
+    │ (xác nhận)│           │  (từ chối) │
+    └───────────┘           └────────────┘
+```
+
+---
+
+## ⚠️ Error Handling
+
+Nếu bất kỳ bước nào fail:
+- n8n dừng workflow
+- Log error message
+- Có thể setup error handling workflow (tùy chọn)
+- Data không được push lên GitHub
+
+---
+
+## 📈 Monitoring
+
+### Check Execution
+```bash
+# Via n8n UI
+http://localhost:5678/workflow/execution-history
+
+# Via logs
+tail -f /path/to/n8n/logs
+```
+
+### Success Indicator
+- ✅ Workflow Complete node được hit
+- ✅ Commit message trên GitHub
+- ✅ Data hiển thị trên GitHub Pages
+
+---
+
+## 🔧 Configuration
+
+### Adjust Data Collection Period
+```python
+# File: /scripts/fetch_vsd.py (line 34)
+KEEP_DAYS = 7  # Change this value
+
+# Examples:
+KEEP_DAYS = 1   # Only today
+KEEP_DAYS = 7   # Last 7 days (default)
+KEEP_DAYS = 30  # Last 30 days
+```
+
+### Schedule Execution
+n8n UI → Workflow Settings → Triggers → Add Schedule
+```
+Time: 12:00 & 17:00 (2x per day)
+Days: Every day (Mon-Sun)
+```
+
+---
+
+## 📚 Related Files
+
+- **README.md** - System overview
+- **FETCH_VSD_LOGIC.md** - Scraping details
+- **COLUMN_DETERMINATION_LOGIC.md** - Field extraction
+- **DEPLOYMENT_GUIDE.md** - Deploy instructions
+- **output_requirement.md** - Output specifications
+
+---
+
+**Last Updated:** 2026-04-21  
+**Version:** v8 - Complete Flow  
+**Status:** ✅ Active
