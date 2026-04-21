@@ -581,11 +581,12 @@
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Tìm kiếm theo mã, tên tổ chức hoặc tên chứng khoán..." onkeyup="filterTable()">
             </div>
-            <div style="display: flex; gap: 10px; align-items: center;">
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <label style="color: #94a3b8; font-size: 13px;">Từ ngày:</label>
-                <input type="date" id="startDate" class="btn" style="padding: 8px 12px; width: 150px;" onchange="filterTable()">
+                <input type="date" id="startDate" class="btn" style="padding: 8px 12px; width: 150px;">
                 <label style="color: #94a3b8; font-size: 13px;">Đến ngày:</label>
-                <input type="date" id="endDate" class="btn" style="padding: 8px 12px; width: 150px;" onchange="filterTable()">
+                <input type="date" id="endDate" class="btn" style="padding: 8px 12px; width: 150px;">
+                <button class="btn btn-primary" onclick="filterTable()" style="padding: 8px 12px;">Áp Dụng Lọc</button>
                 <button class="btn" onclick="clearDateFilter()" style="padding: 8px 12px;">Xóa lọc ngày</button>
             </div>
             <div class="filter-buttons">
