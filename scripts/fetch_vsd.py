@@ -760,8 +760,19 @@ class VSDFetcher:
             total_count = len(result_data)
 
             # Nếu file vsd_records.json tồn tại, load và merge
-            json_file_path = '/app/vps-automation-vhck/data/vsd_records.json'
-            if os.path.exists(json_file_path):
+            # Try multiple paths for both local development and n8n container
+            json_file_paths = [
+                '/app/vps-automation-vhck/data/vsd_records.json',
+                '/Users/hieudt/vps-automation-vhck/data/vsd_records.json',
+                os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'vsd_records.json')
+            ]
+            json_file_path = None
+            for path in json_file_paths:
+                if os.path.exists(path):
+                    json_file_path = path
+                    break
+
+            if json_file_path:
                 try:
                     with open(json_file_path, 'r', encoding='utf-8') as f:
                         existing_data = json.load(f)
@@ -972,9 +983,12 @@ def main():
 
         if json_output_path:
             try:
-                # Chuẩn bị dữ liệu cho HTML: gắn status field
+                # Chuẩn bị dữ liệu cho HTML: gắn status field từ merged data (toàn bộ records)
                 records_for_html = []
-                for record in result.get('data', []):
+                # Lấy toàn bộ records từ result['data'] (đã được merge)
+                all_records = result.get('data', [])
+
+                for record in all_records:
                     html_record = dict(record)
                     if 'status' not in html_record:
                         html_record['status'] = 'pending'
@@ -982,11 +996,11 @@ def main():
                         html_record['confirmation_status'] = 'awaiting_review'
                     records_for_html.append(html_record)
 
-                # Tạo JSON output cho HTML
+                # Tạo JSON output cho HTML (với toàn bộ merged records)
                 json_output = {
                     'status': result.get('status'),
                     'date': result.get('date'),
-                    'records': records_for_html,
+                    'records': records_for_html,  # Toàn bộ merged records, không chỉ new records
                     'total_records': len(records_for_html),
                     'count': result.get('count'),
                     'url': result.get('url'),
