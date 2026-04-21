@@ -777,25 +777,48 @@ class VSDFetcher:
                     with open(json_file_path, 'r', encoding='utf-8') as f:
                         existing_data = json.load(f)
 
-                    existing_records = existing_data.get('records', [])
+                    # Get all records from JSON (handle both old format and new format)
+                    if isinstance(existing_data, dict) and 'records' in existing_data:
+                        existing_records = existing_data.get('records', [])
+                    else:
+                        # If JSON structure is different, try to use existing_data as list
+                        existing_records = existing_data if isinstance(existing_data, list) else []
+
                     logger.info(f"  📚 Found {len(existing_records)} existing records, merging...")
 
-                    # Create map of new codes để tránh duplicate
-                    new_codes = {r['code']: r for r in result_data}
+                    # Create map of new codes, keeping only latest per code (deduplicate)
+                    # Sort by collected_at DESC to get latest first, then take first occurrence
+                    sorted_result = sorted(result_data, key=lambda x: x.get('collected_at', ''), reverse=True)
+                    new_codes = {}
+                    for r in sorted_result:
+                        code = r.get('code')
+                        if code not in new_codes:  # Keep only first (latest) occurrence
+                            new_codes[code] = r
+
+                    logger.info(f"  📝 {len(new_codes)} unique codes from {len(result_data)} records (duplicates removed)")
+
+                    # Update result_data to be deduplicated version
+                    result_data_dedup = list(new_codes.values())
+                    merged_data = result_data_dedup
 
                     # Thêm existing records nếu không trùng với code mới
+                    added_count = 0
                     for existing_record in existing_records:
                         if existing_record.get('code') not in new_codes:
                             merged_data.append(existing_record)
+                            added_count += 1
                         else:
                             # Nếu code trùng, replace với version mới
                             logger.debug(f"  ! Updating {existing_record.get('code')} with new data")
 
-                    logger.info(f"  ✓ Merged: {len(result_data)} new + {len(existing_records)} existing = {len(merged_data)} total")
+                    logger.info(f"  ✓ Merged: {len(result_data)} new + {added_count} added existing = {len(merged_data)} total")
                     total_count = len(merged_data)
 
                 except Exception as e:
-                    logger.error(f"  ✗ Error merging records: {str(e)[:50]}")
+                    logger.error(f"  ✗ Error merging records: {str(e)}")
+                    logger.error(f"  ✗ Exception type: {type(e).__name__}")
+                    import traceback
+                    logger.error(f"  ✗ Traceback: {traceback.format_exc()[:100]}")
                     # Fallback: use only new data nếu merge failed
                     merged_data = result_data
 
@@ -985,8 +1008,26 @@ def main():
             try:
                 # Chuẩn bị dữ liệu cho HTML: gắn status field từ merged data (toàn bộ records)
                 records_for_html = []
-                # Lấy toàn bộ records từ result['data'] (đã được merge)
-                all_records = result.get('data', [])
+
+                # Lấy toàn bộ records từ Excel merge (để match Excel data)
+                # Excel đã merge từ Excel file, vậy use final_records từ Excel logic
+                # Nếu Excel merge thành công, Excel data sẽ đầy đủ, dùng đó
+                # Otherwise fall back to result['data']
+                if 'excel_info' in result and result['excel_info'].get('status') == 'success':
+                    # Excel merge thành công, hãy read lại Excel để get đầy đủ merged data
+                    try:
+                        excel_file = result['excel_info'].get('file')
+                        if excel_file and os.path.exists(excel_file):
+                            df_excel = pd.read_excel(excel_file, sheet_name='Tin chứng khoán')
+                            all_records = df_excel.to_dict('records')
+                            logger.info(f"  📊 Using {len(all_records)} records from Excel merge")
+                        else:
+                            all_records = result.get('data', [])
+                    except:
+                        all_records = result.get('data', [])
+                else:
+                    # Fallback: use result['data']
+                    all_records = result.get('data', [])
 
                 for record in all_records:
                     html_record = dict(record)
