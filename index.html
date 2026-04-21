@@ -853,8 +853,10 @@
 
       function filterTable() {
           const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-          const startDateStr = document.getElementById('startDate').value;
-          const endDateStr = document.getElementById('endDate').value;
+          const startDateInput = document.getElementById('startDate').value;
+          const endDateInput = document.getElementById('endDate').value;
+
+          console.log('filterTable called - startDate:', startDateInput, 'endDate:', endDateInput);
 
           const filtered = allRecords.filter(record => {
               const matchesStatus = currentFilter === 'all' || record.status === currentFilter;
@@ -864,30 +866,26 @@
                   (record.tên_tổ_chức_đăng_ký || '').toLowerCase().includes(searchTerm);
 
               let matchesDate = true;
-              if (startDateStr || endDateStr) {
-                  // Parse date from record (format: DD/MM/YYYY)
+              if (startDateInput || endDateInput) {
                   const recordDateStr = record.collected_date || record.date;
                   if (recordDateStr) {
-                      const [day, month, year] = recordDateStr.split('/').map(Number);
-                      const recordDate = new Date(year, month - 1, day);
+                      // Convert record date DD/MM/YYYY to YYYY-MM-DD for comparison
+                      const [day, month, year] = recordDateStr.split('/');
+                      const recordDateFormatted = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 
-                      if (startDateStr) {
-                          const [y, m, d] = startDateStr.split('-').map(Number);
-                          const startDate = new Date(y, m - 1, d);
-                          if (recordDate < startDate) matchesDate = false;
+                      if (startDateInput && recordDateFormatted < startDateInput) {
+                          matchesDate = false;
                       }
-
-                      if (endDateStr) {
-                          const [y, m, d] = endDateStr.split('-').map(Number);
-                          const endDate = new Date(y, m - 1, d);
-                          endDate.setHours(23, 59, 59, 999);
-                          if (recordDate > endDate) matchesDate = false;
+                      if (endDateInput && recordDateFormatted > endDateInput) {
+                          matchesDate = false;
                       }
                   }
               }
 
               return matchesStatus && matchesSearch && matchesDate;
           });
+
+          console.log('Filtered results:', filtered.length, 'records');
 
           const tbody = document.getElementById('tableBody');
           if (filtered.length === 0) {
