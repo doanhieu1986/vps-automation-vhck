@@ -997,10 +997,10 @@
           const confirmed = allRecords.filter(r => r.status === 'confirmed').length;
           const rejected = allRecords.filter(r => r.status === 'rejected').length;
           
-          if (document.getElementById('totalRecords')) document.getElementById('totalRecords').textContent = total;
-          if (document.getElementById('pendingCount')) document.getElementById('pendingCount').textContent = pending;
-          if (document.getElementById('confirmedCount')) document.getElementById('confirmedCount').textContent = confirmed;
-          if (document.getElementById('rejectedCount')) document.getElementById('rejectedCount').textContent = rejected;
+          document.getElementById('totalCount').textContent = total;
+          document.getElementById('pendingCount').textContent = pending;
+          document.getElementById('confirmedCount').textContent = confirmed;
+          document.getElementById('rejectedCount').textContent = rejected;
           
           // Update last update time
           if (window.EMBEDDED_DATA && window.EMBEDDED_DATA.date) {
