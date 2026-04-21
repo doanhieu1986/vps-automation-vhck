@@ -62,7 +62,13 @@
       "position": [
         960,
         208
-      ]
+      ],
+      "credentials": {
+        "githubApi": {
+          "id": "yI8vNy9ZPOTL156D",
+          "name": "GitHub VPS Automation"
+        }
+      }
     },
     {
       "parameters": {
