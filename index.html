@@ -853,8 +853,8 @@
 
       function filterTable() {
           const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-          const startDate = document.getElementById('startDate').value ? new Date(document.getElementById('startDate').value) : null;
-          const endDate = document.getElementById('endDate').value ? new Date(document.getElementById('endDate').value) : null;
+          const startDateStr = document.getElementById('startDate').value;
+          const endDateStr = document.getElementById('endDate').value;
 
           const filtered = allRecords.filter(record => {
               const matchesStatus = currentFilter === 'all' || record.status === currentFilter;
@@ -864,13 +864,25 @@
                   (record.tên_tổ_chức_đăng_ký || '').toLowerCase().includes(searchTerm);
 
               let matchesDate = true;
-              if (startDate || endDate) {
-                  const recordDate = new Date(record.collected_date || record.date);
-                  if (startDate && recordDate < startDate) matchesDate = false;
-                  if (endDate) {
-                      const endDateWithTime = new Date(endDate);
-                      endDateWithTime.setHours(23, 59, 59, 999);
-                      if (recordDate > endDateWithTime) matchesDate = false;
+              if (startDateStr || endDateStr) {
+                  // Parse date from record (format: DD/MM/YYYY)
+                  const recordDateStr = record.collected_date || record.date;
+                  if (recordDateStr) {
+                      const [day, month, year] = recordDateStr.split('/').map(Number);
+                      const recordDate = new Date(year, month - 1, day);
+
+                      if (startDateStr) {
+                          const [y, m, d] = startDateStr.split('-').map(Number);
+                          const startDate = new Date(y, m - 1, d);
+                          if (recordDate < startDate) matchesDate = false;
+                      }
+
+                      if (endDateStr) {
+                          const [y, m, d] = endDateStr.split('-').map(Number);
+                          const endDate = new Date(y, m - 1, d);
+                          endDate.setHours(23, 59, 59, 999);
+                          if (recordDate > endDate) matchesDate = false;
+                      }
                   }
               }
 
