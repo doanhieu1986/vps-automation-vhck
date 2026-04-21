@@ -170,13 +170,18 @@ class VSDFetcher:
 
             soup = BeautifulSoup(response.content, 'html.parser')
 
-            # Extract text content
-            main = soup.find('main') or soup.find('article')
-            if not main:
-                return None, None, None
+            # Extract text content - thử nhiều selector
+            main = soup.find('main') or soup.find('article') or soup.find('div', class_='main-content') or soup.find('div', class_='content')
 
-            # Lấy chỉ nội dung chính của article, không lấy phần "Tin cùng tổ chức" hoặc bảng thống kê phía dưới
-            text_content = main.get_text()
+            if not main:
+                # Fallback: lấy toàn bộ body content nếu không tìm được main/article
+                body = soup.find('body')
+                if not body:
+                    return None, None, None
+                text_content = body.get_text()
+            else:
+                # Lấy chỉ nội dung chính của article, không lấy phần "Tin cùng tổ chức" hoặc bảng thống kê phía dưới
+                text_content = main.get_text()
 
             # Tìm điểm kết thúc của nội dung chính (phần "Tin cùng tổ chức" hoặc các phần khác)
             cutoff_markers = [
@@ -469,7 +474,9 @@ class VSDFetcher:
                 logger.debug(f"  ✓ Found actual update date: {date_str}")
 
             # Lưu nội dung chính của bài viết (dùng cho hiển thị full text)
-            info['text_content'] = text_content
+            # Clean up: remove extra whitespace
+            text_content = '\n'.join(line.strip() for line in text_content.split('\n') if line.strip())
+            info['text_content'] = text_content if text_content else None
 
             return info, extracted_code, actual_update_date
 
