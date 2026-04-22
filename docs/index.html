@@ -768,10 +768,7 @@
 
     
 
-
-
-
-    <script>
+<script>
       window.EMBEDDED_DATA = {
   "status": "success",
   "date": "2026-04-22",
@@ -11762,5 +11759,19 @@
 };
       console.log("✅ Embedded data loaded:", window.EMBEDDED_DATA.records ? window.EMBEDDED_DATA.records.length + ' records' : 'no records');
     </script>
+
+<script>
+// Auto-load data when page opens
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 Page loaded, initializing...');
+    if (window.EMBEDDED_DATA && window.EMBEDDED_DATA.records) {
+        console.log('✅ Found embedded data:', window.EMBEDDED_DATA.records.length, 'records');
+        loadDataFromFile();
+    } else {
+        console.warn('⚠️  No embedded data found');
+    }
+});
+</script>
+
 </body>
 </html>
