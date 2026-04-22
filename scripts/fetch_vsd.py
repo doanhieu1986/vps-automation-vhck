@@ -278,7 +278,7 @@ class VSDFetcher:
                 value = value_div.get_text(strip=True)
 
                 # Map labels to info keys
-                if 'tên tổ chức đăng ký' in label:
+                if 'tên tổ chức đăng ký' in label or 'tên tcđkck' in label or 'tcđkck' in label:
                     info['tên_tổ_chức_đăng_ký'] = value
                 elif 'tên chứng khoán' in label:
                     info['tên_chứng_khoán'] = value
@@ -331,6 +331,18 @@ class VSDFetcher:
                     'Lý do|Mục đích',
                     max_length=300
                 )
+
+            # Nếu chưa có tên tổ chức đăng ký, thử extract từ text content
+            # Tìm "Tên tổ chức đăng ký chứng khoán" hoặc "Tên TCĐKCK"
+            if not info['tên_tổ_chức_đăng_ký']:
+                # Pattern: "Tên tổ chức đăng ký chứng khoán:" hoặc "Tên TCĐKCK:" + value
+                org_pattern = r'(?:Tên tổ chức đăng ký chứng khoán|Tên TCĐKCK)[:\s]+([^\n]+)'
+                org_match = re.search(org_pattern, text_content, re.IGNORECASE)
+                if org_match:
+                    extracted_org = org_match.group(1).strip()
+                    if extracted_org and extracted_org != '--':
+                        info['tên_tổ_chức_đăng_ký'] = extracted_org
+                        logger.debug(f"  ✓ Found org name from text: {extracted_org[:50]}")
 
             # Extract 9 new quyền fields từ text content + tiêu đề với các giá trị cụ thể
             # Sử dụng keyword mapping để tìm các giá trị cụ thể trong text
