@@ -853,8 +853,10 @@
 
       function filterTable() {
           const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-          const startDate = document.getElementById('startDate').value ? new Date(document.getElementById('startDate').value) : null;
-          const endDate = document.getElementById('endDate').value ? new Date(document.getElementById('endDate').value) : null;
+          const startDateInput = document.getElementById('startDate').value;
+          const endDateInput = document.getElementById('endDate').value;
+
+          console.log('filterTable called - startDate:', startDateInput, 'endDate:', endDateInput);
 
           const filtered = allRecords.filter(record => {
               const matchesStatus = currentFilter === 'all' || record.status === currentFilter;
@@ -864,18 +866,26 @@
                   (record.tên_tổ_chức_đăng_ký || '').toLowerCase().includes(searchTerm);
 
               let matchesDate = true;
-              if (startDate || endDate) {
-                  const recordDate = new Date(record.collected_date || record.date);
-                  if (startDate && recordDate < startDate) matchesDate = false;
-                  if (endDate) {
-                      const endDateWithTime = new Date(endDate);
-                      endDateWithTime.setHours(23, 59, 59, 999);
-                      if (recordDate > endDateWithTime) matchesDate = false;
+              if (startDateInput || endDateInput) {
+                  const recordDateStr = record.collected_date || record.date;
+                  if (recordDateStr) {
+                      // Convert record date DD/MM/YYYY to YYYY-MM-DD for comparison
+                      const [day, month, year] = recordDateStr.split('/');
+                      const recordDateFormatted = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+
+                      if (startDateInput && recordDateFormatted < startDateInput) {
+                          matchesDate = false;
+                      }
+                      if (endDateInput && recordDateFormatted > endDateInput) {
+                          matchesDate = false;
+                      }
                   }
               }
 
               return matchesStatus && matchesSearch && matchesDate;
           });
+
+          console.log('Filtered results:', filtered.length, 'records');
 
           const tbody = document.getElementById('tableBody');
           if (filtered.length === 0) {
@@ -1078,6 +1088,7 @@
           initPage();
       }
 </script>
+
     <script>
       window.EMBEDDED_DATA = {
   "status": "success",
