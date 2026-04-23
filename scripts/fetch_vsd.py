@@ -852,20 +852,11 @@ class VSDFetcher:
 
                     logger.info(f"  📚 Found {len(existing_records)} existing records, merging...")
 
-                    # Create map of new codes, keeping only latest per code (deduplicate)
-                    # Sort by collected_at DESC to get latest first, then take first occurrence
-                    sorted_result = sorted(result_data, key=lambda x: x.get('collected_at', ''), reverse=True)
-                    new_codes = {}
-                    for r in sorted_result:
-                        code = r.get('code')
-                        if code not in new_codes:  # Keep only first (latest) occurrence
-                            new_codes[code] = r
+                    # Keep all records including those split by purpose (don't remove duplicates)
+                    # This allows records with same code but different lý_do_mục_đích to coexist
+                    merged_data = result_data
 
-                    logger.info(f"  📝 {len(new_codes)} unique codes from {len(result_data)} records (duplicates removed)")
-
-                    # Update result_data to be deduplicated version
-                    result_data_dedup = list(new_codes.values())
-                    merged_data = result_data_dedup
+                    logger.info(f"  📝 Keeping all {len(result_data)} records including split by purpose (no deduplication)")
 
                     # Thêm existing records nếu không trùng với code mới
                     added_count = 0
