@@ -839,7 +839,7 @@
               return;
           }
 
-          tbody.innerHTML = filtered.map(record => {
+          tbody.innerHTML = filtered.map((record, index) => {
               return '<tr onclick="showDetail(\'' + escapeHtml(record.code) + '\')" style="cursor: pointer;">' +
                   '<td class="symbol-cell">' + escapeHtml(record.code) + '</td>' +
                   '<td>' + escapeHtml(record.title || record.tên_chứng_khoán || '--') + '</td>' +
@@ -893,7 +893,7 @@
               return;
           }
 
-          tbody.innerHTML = filtered.map(record => {
+          tbody.innerHTML = filtered.map((record, index) => {
               return '<tr onclick="showDetail(\'' + escapeHtml(record.code) + '\')" style="cursor: pointer;">' +
                   '<td class="symbol-cell">' + escapeHtml(record.code) + '</td>' +
                   '<td>' + escapeHtml(record.tên_chứng_khoán || '--') + '</td>' +
@@ -920,8 +920,8 @@
           filterTable();
       }
 
-      function showDetail(code) {
-          selectedRecord = allRecords.find(r => r.code === code);
+      function showDetail(index) {
+          selectedRecord = allRecords[index];
           if (!selectedRecord) return;
 
           document.getElementById('modalTitle').textContent = 'Chi tiết - ' + escapeHtml(code);
