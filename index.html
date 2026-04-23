@@ -865,6 +865,27 @@
         document.getElementById('detailLocation').textContent = record.địa_điểm_thực_hiện || 'N/A';
         document.getElementById('detailPurpose').textContent = record.lý_do_mục_đích || 'N/A';
         document.getElementById('detailRatio').textContent = record.tỷ_lệ_thực_hiện || 'N/A';
+
+        // Rights and benefits section
+        document.getElementById('detailRightShMeeting').textContent = record.quyền_họp_đại_hội_cổ_đông || 'N/A';
+        document.getElementById('detailRightDividendCash').textContent = record.quyền_cổ_tức_tiền || 'N/A';
+        document.getElementById('detailRightDividendShare').textContent = record.quyền_cổ_tức_cổ_phiếu || 'N/A';
+        document.getElementById('detailRightPurchase').textContent = record.quyền_mua || 'N/A';
+        document.getElementById('detailRightSwapConversion').textContent = record.quyền_hoán_đổi_chuyển_đổi || 'N/A';
+        document.getElementById('detailWarrant').textContent = record.chứng_quyền || 'N/A';
+        document.getElementById('detailRegistrationApproval').textContent = record.chấp_thuận_đăng_ký || 'N/A';
+        document.getElementById('detailCancellation').textContent = record.tin_húy || 'N/A';
+        document.getElementById('detailChange').textContent = record.thay_đổi || 'N/A';
+
+        // Full text content
+        const fullTextSection = document.getElementById('fullTextSection');
+        if (record.text_content && fullTextSection) {
+          document.getElementById('detailFullText').textContent = record.text_content;
+          fullTextSection.style.display = 'block';
+        } else if (fullTextSection) {
+          fullTextSection.style.display = 'none';
+        }
+
         document.getElementById('detailUrl').href = record.url || '#';
         document.getElementById('detailUrl').textContent = 'Xem trên nguồn gốc';
 
