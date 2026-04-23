@@ -101,6 +101,36 @@ class VSDFetcher:
             return extracted if extracted else None
         return None
 
+    def extract_field_bullets(self, text, field_label):
+        """
+        Extract field value và split thành list nếu có bullet points
+
+        Ví dụ:
+        "Tỷ lệ thực hiện:\n+ Quyền 1\n+ Quyền 2" => ['Quyền 1', 'Quyền 2']
+        "Tỷ lệ thực hiện: Quyền duy nhất" => ['Quyền duy nhất']
+
+        Returns:
+            List of extracted values, or None if nothing found
+        """
+        pattern = f"{field_label}[:\\s]+([^\\n]+(?:\\n\\s*[+\\-•]\\s*[^\\n]+)*)"
+        match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+
+        if not match:
+            return None
+
+        extracted = match.group(1).strip()
+
+        # Tìm tất cả bullet points
+        bullet_pattern = r'[+\-•]\s*([^\n]+)'
+        bullets = re.findall(bullet_pattern, extracted)
+
+        if bullets:
+            # Nếu tìm được bullet points, trả về list
+            return [b.strip() for b in bullets if b.strip()]
+        else:
+            # Nếu không có bullet points, trả về single item
+            return [extracted] if extracted else None
+
     def contains_keyword(self, text, keywords):
         """
         Check if text contains any of the keywords (case-insensitive)
@@ -308,7 +338,7 @@ class VSDFetcher:
                 info['tỷ_lệ_thực_hiện'] = self.extract_field_from_text(
                     text_content,
                     'Tỷ lệ thực hiện',
-                    max_length=500
+                    max_length=1000
                 )
 
             if not info['thời_gian_thực_hiện']:
@@ -763,7 +793,27 @@ class VSDFetcher:
                 for future, code in futures:
                     try:
                         result_item = future.result()
-                        result_data.append(result_item)
+
+                        # Handle multiple purposes: if lý_do_mục_đích contains semicolon (;), split into multiple records
+                        lý_do = result_item.get('lý_do_mục_đích')
+                        if lý_do and isinstance(lý_do, str) and ';' in lý_do:
+                            # Split by semicolon
+                            purposes = [p.strip() for p in lý_do.split(';') if p.strip()]
+
+                            if len(purposes) > 1:
+                                # Create a record for each purpose
+                                for idx, purpose in enumerate(purposes, 1):
+                                    purpose_item = dict(result_item)
+                                    purpose_item['lý_do_mục_đích'] = purpose
+                                    # Update title to show which part
+                                    purpose_item['title'] = result_item['title'] + f" (Phần {idx}: {purpose[:40]}...)" if len(purpose) > 40 else result_item['title'] + f" (Phần {idx}: {purpose})"
+                                    result_data.append(purpose_item)
+                                    logger.error(f"    ✓ Split {code} by purpose: [{idx}] {purpose[:60]}")
+                            else:
+                                result_data.append(result_item)
+                        else:
+                            result_data.append(result_item)
+
                         if len(result_data) % 100 == 0:
                             logger.info(f"    Extracted {len(result_data)}/{len(filtered_news)}")
                     except Exception as e:
