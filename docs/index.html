@@ -852,8 +852,16 @@
 
         // Update modal with record data
         document.getElementById('detailCode').textContent = record.code || 'N/A';
-        document.getElementById('detailTitle').textContent = record.title || 'N/A';
+        document.getElementById('detailName').textContent = record.tên_chứng_khoán || 'N/A';
         document.getElementById('detailOrg').textContent = record.tên_tổ_chức_đăng_ký || 'N/A';
+        document.getElementById('detailISIN').textContent = record.mã_isin || 'N/A';
+        document.getElementById('detailExchange').textContent = record.nơi_giao_dịch || 'N/A';
+        document.getElementById('detailType').textContent = record.loại_chứng_khoán || 'N/A';
+        document.getElementById('detailRegDate').textContent = record.ngày_đăng_ký_cuối || 'N/A';
+        document.getElementById('detailTime').textContent = record.thời_gian_thực_hiện || 'N/A';
+        document.getElementById('detailLocation').textContent = record.địa_điểm_thực_hiện || 'N/A';
+        document.getElementById('detailPurpose').textContent = record.lý_do_mục_đích || 'N/A';
+        document.getElementById('detailRatio').textContent = record.tỷ_lệ_thực_hiện || 'N/A';
         document.getElementById('detailUrl').href = record.url || '#';
         document.getElementById('detailUrl').textContent = 'Xem trên nguồn gốc';
 
@@ -1025,23 +1033,6 @@
         document.getElementById('pendingCount').textContent = pending;
         document.getElementById('confirmedCount').textContent = confirmed;
         document.getElementById('rejectedCount').textContent = rejected;
-      }
-
-      function showModal(recordId) {
-        const records = window.EMBEDDED_DATA?.records || [];
-        const record = records.find(r => r._record_id === recordId);
-        if (!record) { alert('Không tìm thấy record'); return; }
-        document.getElementById('detailCode').textContent = record.code || 'N/A';
-        document.getElementById('detailTitle').textContent = record.title || 'N/A';
-        document.getElementById('detailOrg').textContent = record.tên_tổ_chức_đăng_ký || 'N/A';
-        document.getElementById('detailUrl').href = record.url || '#';
-        const modal = document.getElementById('detailModal');
-        if (modal) modal.style.display = 'flex';
-      }
-
-      function closeModal() {
-        const modal = document.getElementById('detailModal');
-        if (modal) modal.style.display = 'none';
       }
 
       function filterTable() {
