@@ -1,0 +1,92 @@
+{
+  "id": "wgr647NRszLT8oyR",
+  "name": "VPS Automation VHCK v8 - Complete Flow",
+  "description": "Complete automated workflow: Fetch VSD → Verify Excel → Embed JSON → Push to GitHub",
+  "active": false,
+  "isArchived": false,
+  "createdAt": "2026-04-23T04:34:08.593Z",
+  "updatedAt": "2026-04-23T08:03:19.352Z",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "63c9b9b8-864d-49cd-bea2-ca644945ba87",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [1376, 224]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { spawn } = require('child_process');\n\nreturn new Promise((resolve) => {\n  const diagProcess = spawn('which', ['python3']);\n  let pythonPath = '';\n\n  diagProcess.stdout.on('data', (data) => {\n    pythonPath += data.toString().trim();\n  });\n\n  diagProcess.on('close', () => {\n    const scriptPath = '/app/vps-automation-vhck/scripts/fetch_vsd.py';\n    const pythonExe = pythonPath || 'python3';\n    const pythonProcess = spawn(pythonExe, [scriptPath]);\n    let output = '';\n    let errorOutput = '';\n\n    pythonProcess.stdout.on('data', (data) => {\n      output += data.toString();\n    });\n\n    pythonProcess.stderr.on('data', (data) => {\n      errorOutput += data.toString();\n    });\n\n    pythonProcess.on('close', (code) => {\n      if (code !== 0) {\n        resolve([{ json: { error: `Script exited with code ${code}`, stderr: errorOutput, status: 'error' } }]);\n        return;\n      }\n      try {\n        const lines = output.split('\\\\n');\n        let jsonStr = '';\n        let inJson = false;\n\n        for (const line of lines) {\n          if (line.startsWith('{')) {\n            inJson = true;\n          }\n          if (inJson) {\n            jsonStr += line + '\\\\n';\n          }\n        }\n\n        if (!jsonStr.trim()) {\n          resolve([{ json: { error: 'No JSON found in output', status: 'error' } }]);\n          return;\n        }\n\n        const vsdData = JSON.parse(jsonStr);\n        resolve([{ json: vsdData }]);\n      } catch (e) {\n        resolve([{ json: { error: 'Failed to parse JSON output: ' + e.message, status: 'error' } }]);\n      }\n    });\n\n    pythonProcess.on('error', (error) => {\n      resolve([{ json: { error: error.message, pythonPath: pythonPath, status: 'error' } }]);\n    });\n  });\n});"
+      },
+      "id": "8f6103e5-7056-4c69-918e-0b6b1f437ee2",
+      "name": "Fetch VSD (Tin Tuc)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1600, 224]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst input = $input.first().json;\nconst excelInfo = input.excel_info;\nconst status = input.status;\n\nif (status !== 'success') {\n  return [{ json: { status: 'error', message: input.message || 'Fetch failed', details: input } }];\n}\n\nif (!excelInfo || excelInfo.status !== 'success') {\n  return [{ json: { status: 'error', message: 'Excel creation failed', details: excelInfo } }];\n}\n\nconst path = excelInfo.file;\n\ntry {\n  if (fs.existsSync(path)) {\n    const stats = fs.statSync(path);\n    return [{ json: { \n      status: 'success', \n      message: `Excel file created: ${excelInfo.message}`,\n      file: path, \n      file_size: stats.size,\n      records_count: excelInfo.records_count,\n      timestamp: excelInfo.timestamp\n    } }];\n  } else {\n    return [{ json: { status: 'error', message: `File not found: ${path}` } }];\n  }\n} catch (error) {\n  return [{ json: { status: 'error', message: error.message } }];\n}"
+      },
+      "id": "6d1fcb86-10ae-4c86-88dc-933ef87fed80",
+      "name": "Verify Excel File",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1824, 224]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\n\nconst input = $input.first().json;\nif (input.status === 'error') {\n  return [{ json: { status: 'error', message: 'Cannot embed: ' + input.message } }];\n}\n\ntry {\n  console.log('📝 Embedding JSON into HTML files...');\n  \n  // Find JSON file - try both container and local paths\n  let jsonPath = null;\n  const jsonPathOptions = [\n    '/app/vps-automation-vhck/data/vsd_records.json',\n    '/Users/hieudt/vps-automation-vhck/data/vsd_records.json'\n  ];\n  \n  for (const path of jsonPathOptions) {\n    if (fs.existsSync(path)) {\n      jsonPath = path;\n      console.log('✓ Found JSON at: ' + path);\n      break;\n    }\n  }\n  \n  if (!jsonPath) {\n    return [{ json: { status: 'error', message: 'JSON file not found at any expected location', tried: jsonPathOptions } }];\n  }\n  \n  const jsonContent = fs.readFileSync(jsonPath, 'utf-8');\n  const jsonData = JSON.parse(jsonContent);\n  const recordCount = jsonData.records ? jsonData.records.length : 0;\n  \n  // Prepare embedded script\n  const jsonStr = JSON.stringify(jsonData, null, 0);\n  const embeddedScript = '\\\\n    <script>\\\\n      window.EMBEDDED_DATA = ' + jsonStr + ';\\\\n      console.log(\"Embedded data loaded: ' + recordCount + ' records\");\\\\n    </script>';\n  \n  // Update HTML files in Docker container (/app/ path)\n  const htmlFileSets = [\n    {\n      base: '/app/vps-automation-vhck',\n      files: ['docs/index.html', 'index.html', 'web/vps_automation_vhck.html']\n    }\n  ];\n  \n  let successCount = 0;\n  const updates = [];\n  \n  for (const fileSet of htmlFileSets) {\n    for (const relPath of fileSet.files) {\n      const htmlPath = fileSet.base + '/' + relPath;\n      \n      try {\n        if (!fs.existsSync(htmlPath)) {\n          console.log('⚠️  File not found: ' + htmlPath);\n          updates.push({ file: htmlPath, status: 'not_found' });\n          continue;\n        }\n        \n        let htmlContent = fs.readFileSync(htmlPath, 'utf-8');\n        const originalSize = htmlContent.length;\n        \n        // Remove old embedded data\n        htmlContent = htmlContent.replace(/<script>[\\\\s\\\\S]*?window\\\\.EMBEDDED_DATA[\\\\s\\\\S]*?<\\\\/script>/g, '');\n        \n        // Add new embedded data before closing body tag\n        htmlContent = htmlContent.replace('</body>', embeddedScript + '\\\\n</body>');\n        \n        // Write updated HTML\n        fs.writeFileSync(htmlPath, htmlContent);\n        successCount++;\n        console.log('✅ Updated: ' + htmlPath + ' (' + originalSize + ' → ' + htmlContent.length + ' bytes)');\n        updates.push({ file: htmlPath, status: 'success', size: htmlContent.length });\n      } catch (e) {\n        console.log('❌ Failed: ' + htmlPath + ' - ' + e.message);\n        updates.push({ file: htmlPath, status: 'error', error: e.message });\n      }\n    }\n  }\n  \n  return [{ json: {\n    status: 'success',\n    message: 'Embedded ' + recordCount + ' records into ' + successCount + ' HTML files',\n    records_embedded: recordCount,\n    files_updated: successCount,\n    json_path: jsonPath,\n    updates: updates,\n    timestamp: new Date().toISOString()\n  } }];\n} catch (error) {\n  return [{ json: {\n    status: 'error',\n    message: 'Embedding failed: ' + error.message,\n    error_stack: error.stack\n  } }];\n}"
+      },
+      "id": "75b8c4c0-2f33-4e9c-85c0-eac2b53ec00b",
+      "name": "Embed JSON into HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2048, 224]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst https = require('https');\n\nconst input = $input.first().json;\nif (input.status === 'error') {\n  return [{ json: { status: 'error', message: 'Cannot commit: ' + input.message } }];\n}\n\nlet token, owner, repo, baseDir;\ntry {\n  let configPath = null;\n  const configPathOptions = [\n    '/app/vps-automation-vhck/.github-token.json',\n    '/Users/hieudt/vps-automation-vhck/.github-token.json'\n  ];\n\n  for (const path of configPathOptions) {\n    if (fs.existsSync(path)) {\n      configPath = path;\n      baseDir = path.substring(0, path.lastIndexOf('/.github'));\n      console.log('✓ Found token config at: ' + path);\n      break;\n    }\n  }\n\n  if (!configPath) {\n    return [{ json: { status: 'error', message: 'Token config not found', tried: configPathOptions } }];\n  }\n\n  const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));\n  token = config.github.token;\n  owner = config.github.owner;\n  repo = config.github.repo;\n} catch (e) {\n  return [{ json: { status: 'error', message: 'Token config error: ' + e.message } }];\n}\n\nconst pushFile = (path, content, message) => {\n  return new Promise((resolve, reject) => {\n    const url = `/repos/${owner}/${repo}/contents/${path}`;\n\n    const getReq = https.request({\n      hostname: 'api.github.com',\n      path: url,\n      method: 'GET',\n      headers: {\n        'Authorization': `token ${token}`,\n        'Accept': 'application/vnd.github.v3+json',\n        'User-Agent': 'n8n'\n      }\n    }, (res) => {\n      let data = '';\n      res.on('data', chunk => data += chunk);\n      res.on('end', () => {\n        let sha = '';\n        try {\n          sha = JSON.parse(data).sha || '';\n        } catch (e) {}\n\n        const body = JSON.stringify({\n          message: message,\n          content: content,\n          sha: sha,\n          branch: 'main'\n        });\n\n        const putReq = https.request({\n          hostname: 'api.github.com',\n          path: url,\n          method: 'PUT',\n          headers: {\n            'Authorization': `token ${token}`,\n            'Accept': 'application/vnd.github.v3+json',\n            'Content-Type': 'application/json',\n            'Content-Length': body.length,\n            'User-Agent': 'n8n'\n          }\n        }, (res) => {\n          let respData = '';\n          res.on('data', chunk => respData += chunk);\n          res.on('end', () => {\n            if (res.statusCode >= 400) {\n              reject(new Error(`GitHub API ${res.statusCode}`));\n            } else {\n              resolve(res.statusCode);\n            }\n          });\n        });\n\n        putReq.on('error', reject);\n        putReq.write(body);\n        putReq.end();\n      });\n    });\n\n    getReq.on('error', reject);\n    getReq.end();\n  });\n};\n\nreturn new Promise(async (resolve) => {\n  try {\n    // Find JSON file (read from /app/ in container)\n    let jsonPath = null;\n    const jsonPathOptions = [\n      '/app/vps-automation-vhck/data/vsd_records.json'\n    ];\n    \n    for (const path of jsonPathOptions) {\n      if (fs.existsSync(path)) {\n        jsonPath = path;\n        console.log('✓ Found JSON at: ' + path);\n        break;\n      }\n    }\n    \n    if (!jsonPath) {\n      return resolve([{ json: { status: 'error', message: 'JSON file not found', tried: jsonPathOptions } }]);\n    }\n\n    const recordCount = input.records_embedded || 0;\n    const filesUpdated = input.files_updated || 0;\n\n    console.log('📤 Committing files to GitHub...');\n\n    // Commit JSON first\n    const jsonContent = fs.readFileSync(jsonPath, 'utf-8');\n    const jsonBase64 = Buffer.from(jsonContent).toString('base64');\n    await pushFile('data/vsd_records.json', jsonBase64, 'ci: update VSD data (' + recordCount + ' records)');\n    console.log('✅ Committed JSON');\n\n    // Commit all 3 HTML files with embedded data\n    const htmlFiles = [\n      'docs/index.html',\n      'index.html',\n      'web/vps_automation_vhck.html'\n    ];\n\n    for (const htmlRelPath of htmlFiles) {\n      try {\n        const fullPath = baseDir + '/' + htmlRelPath;\n        const htmlContent = fs.readFileSync(fullPath, 'utf-8');\n        const htmlBase64 = Buffer.from(htmlContent).toString('base64');\n        await pushFile(htmlRelPath, htmlBase64, 'ci: update HTML with embedded data (' + recordCount + ' records)');\n        console.log('✅ Committed ' + htmlRelPath);\n      } catch (e) {\n        console.log('⚠️  Skipped ' + htmlRelPath + ': ' + e.message);\n      }\n    }\n\n    resolve([{ json: {\n      status: 'success',\n      message: 'Committed ' + recordCount + ' records to GitHub (' + filesUpdated + ' HTML files updated)',\n      github_url: 'https://github.com/' + owner + '/' + repo,\n      pages_url: 'https://' + owner + '.github.io/' + repo + '/',\n      records_committed: recordCount,\n      files_updated: filesUpdated,\n      timestamp: new Date().toISOString()\n    } }]);\n  } catch (error) {\n    console.error('❌ Commit failed:', error.message);\n    resolve([{ json: {\n      status: 'error',\n      message: 'Commit failed: ' + error.message\n    } }]);\n  }\n});"
+      },
+      "id": "3d08ed8c-7950-4baf-a9f8-b47c5e7a5dcf",
+      "name": "Push to GitHub",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2272, 224]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\nif (input.status === 'error') {\n  return [{ json: {\n    status: 'error',\n    message: 'Workflow failed: ' + input.message,\n    error_details: input,\n    timestamp: new Date().toISOString()\n  } }];\n}\n\nreturn [{ json: {\n  status: 'success',\n  message: 'Workflow completed! Data committed to GitHub',\n  github_url: input.github_url,\n  pages_url: input.pages_url,\n  records_committed: input.records_committed || 0,\n  timestamp: new Date().toISOString()\n} }];"
+      },
+      "id": "3ada6058-0acf-4ca9-9dde-f02c054a2b49",
+      "name": "Workflow Complete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2496, 224]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{"node": "Fetch VSD (Tin Tuc)", "type": "main", "index": 0}]]
+    },
+    "Fetch VSD (Tin Tuc)": {
+      "main": [[{"node": "Verify Excel File", "type": "main", "index": 0}]]
+    },
+    "Verify Excel File": {
+      "main": [[{"node": "Embed JSON into HTML", "type": "main", "index": 0}]]
+    },
+    "Embed JSON into HTML": {
+      "main": [[{"node": "Push to GitHub", "type": "main", "index": 0}]]
+    },
+    "Push to GitHub": {
+      "main": [[{"node": "Workflow Complete", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}
