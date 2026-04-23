@@ -827,8 +827,9 @@ class VSDFetcher:
                                         if tỷ_lệ_match:
                                             purpose_item['tỷ_lệ_thực_hiện'] = tỷ_lệ_match.group(1).strip()[:1000]
 
-                                    # Update title to show which part
-                                    purpose_item['title'] = result_item['title'] + f" (Phần {idx}: {purpose[:40]}...)" if len(purpose) > 40 else result_item['title'] + f" (Phần {idx}: {purpose})"
+                                    # Update title to show only the specific purpose for this split record
+                                    code = result_item.get('code', 'N/A')
+                                    purpose_item['title'] = f"{code}: {purpose}"
                                     result_data.append(purpose_item)
                                     logger.error(f"    ✓ Split {code} by purpose: [{idx}] {purpose[:60]}")
                             else:
