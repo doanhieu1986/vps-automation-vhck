@@ -941,18 +941,21 @@
         // Render filtered results
         tableBody.innerHTML = '';
         if (filtered.length === 0) {
-          tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">Không tìm thấy kết quả</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Không tìm thấy kết quả</td></tr>';
           return;
         }
 
         filtered.forEach(record => {
           const row = document.createElement('tr');
+          row.style.cursor = 'pointer';
+          row.onclick = () => showModal(record._record_id);
           row.innerHTML = `
             <td>${record.code || 'N/A'}</td>
-            <td>${record.tên_tổ_chức_đăng_ký || 'N/A'}</td>
             <td>${record.tên_chứng_khoán || 'N/A'}</td>
+            <td>${record.tên_tổ_chức_đăng_ký || 'N/A'}</td>
+            <td>${record.nơi_giao_dịch || 'N/A'}</td>
+            <td>${record.loại_chứng_khoán || 'N/A'}</td>
             <td><span class="status-badge status-${record.status || 'pending'}">${record.status || 'pending'}</span></td>
-            <td><button class="btn btn-sm" onclick="showModal('${record._record_id}')">Chi tiết</button></td>
           `;
           tableBody.appendChild(row);
         });
@@ -982,18 +985,21 @@
 
         tableBody.innerHTML = '';
         if (filtered.length === 0) {
-          tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">Không có records</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Không có records</td></tr>';
           return;
         }
 
         filtered.forEach(record => {
           const row = document.createElement('tr');
+          row.style.cursor = 'pointer';
+          row.onclick = () => showModal(record._record_id);
           row.innerHTML = `
             <td>${record.code || 'N/A'}</td>
-            <td>${record.tên_tổ_chức_đăng_ký || 'N/A'}</td>
             <td>${record.tên_chứng_khoán || 'N/A'}</td>
+            <td>${record.tên_tổ_chức_đăng_ký || 'N/A'}</td>
+            <td>${record.nơi_giao_dịch || 'N/A'}</td>
+            <td>${record.loại_chứng_khoán || 'N/A'}</td>
             <td><span class="status-badge status-${record.status || 'pending'}">${record.status || 'pending'}</span></td>
-            <td><button class="btn btn-sm" onclick="showModal('${record._record_id}')">Chi tiết</button></td>
           `;
           tableBody.appendChild(row);
         });
