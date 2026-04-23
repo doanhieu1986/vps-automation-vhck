@@ -890,3 +890,109 @@
     </script>
 </body>
 </html>
+      // Filter table by search text and date range
+      function filterTable() {
+        const searchInput = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        const startDate = document.getElementById('startDate')?.value;
+        const endDate = document.getElementById('endDate')?.value;
+        const tableBody = document.getElementById('tableBody');
+        
+        if (!tableBody) return;
+
+        const records = window.EMBEDDED_DATA?.records || [];
+        let filtered = records;
+
+        // Filter by search text
+        if (searchInput) {
+          filtered = filtered.filter(r => 
+            (r.code && r.code.toLowerCase().includes(searchInput)) ||
+            (r.tên_tổ_chức_đăng_ký && r.tên_tổ_chức_đăng_ký.toLowerCase().includes(searchInput)) ||
+            (r.tên_chứng_khoán && r.tên_chứng_khoán.toLowerCase().includes(searchInput))
+          );
+        }
+
+        // Filter by date range
+        if (startDate || endDate) {
+          filtered = filtered.filter(r => {
+            const recordDate = r.date; // format: DD/MM/YYYY
+            if (!recordDate) return false;
+            
+            const [day, month, year] = recordDate.split('/');
+            const dateObj = new Date(year, month - 1, day);
+            
+            const start = startDate ? new Date(startDate) : new Date('1900-01-01');
+            const end = endDate ? new Date(endDate) : new Date('2099-12-31');
+            
+            return dateObj >= start && dateObj <= end;
+          });
+        }
+
+        // Render filtered results
+        tableBody.innerHTML = '';
+        if (filtered.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">Không tìm thấy kết quả</td></tr>';
+          return;
+        }
+
+        filtered.forEach(record => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${record.code || 'N/A'}</td>
+            <td>${record.tên_tổ_chức_đăng_ký || 'N/A'}</td>
+            <td>${record.tên_chứng_khoán || 'N/A'}</td>
+            <td><span class="status-badge status-${record.status || 'pending'}">${record.status || 'pending'}</span></td>
+            <td><button class="btn btn-sm" onclick="showModal('${record._record_id}')">Chi tiết</button></td>
+          `;
+          tableBody.appendChild(row);
+        });
+      }
+
+      // Filter by status
+      let currentStatus = 'all';
+      function filterByStatus(status) {
+        currentStatus = status;
+        
+        // Update button styles
+        document.querySelectorAll('.filter-buttons .btn').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+
+        // Filter table
+        const tableBody = document.getElementById('tableBody');
+        if (!tableBody) return;
+
+        const records = window.EMBEDDED_DATA?.records || [];
+        let filtered = records;
+
+        if (status !== 'all') {
+          filtered = filtered.filter(r => r.status === status);
+        }
+
+        tableBody.innerHTML = '';
+        if (filtered.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">Không có records</td></tr>';
+          return;
+        }
+
+        filtered.forEach(record => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${record.code || 'N/A'}</td>
+            <td>${record.tên_tổ_chức_đăng_ký || 'N/A'}</td>
+            <td>${record.tên_chứng_khoán || 'N/A'}</td>
+            <td><span class="status-badge status-${record.status || 'pending'}">${record.status || 'pending'}</span></td>
+            <td><button class="btn btn-sm" onclick="showModal('${record._record_id}')">Chi tiết</button></td>
+          `;
+          tableBody.appendChild(row);
+        });
+      }
+
+      // Clear date filter
+      function clearDateFilter() {
+        document.getElementById('startDate').value = '';
+        document.getElementById('endDate').value = '';
+        filterTable();
+      }
+</body>
+</html>
