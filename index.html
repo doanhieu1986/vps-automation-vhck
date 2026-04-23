@@ -808,18 +808,21 @@
         tableBody.innerHTML = '';
 
         if (!records || records.length === 0) {
-          tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">Không có dữ liệu</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Không có dữ liệu</td></tr>';
           return;
         }
 
         records.forEach((record, index) => {
           const row = document.createElement('tr');
+          row.style.cursor = 'pointer';
+          row.onclick = () => showModal('${record._record_id}');
           row.innerHTML = `
             <td>${record.code || 'N/A'}</td>
-            <td>${record.tên_tổ_chức_đăng_ký || 'N/A'}</td>
             <td>${record.tên_chứng_khoán || 'N/A'}</td>
+            <td>${record.tên_tổ_chức_đăng_ký || 'N/A'}</td>
+            <td>${record.nơi_giao_dịch || 'N/A'}</td>
+            <td>${record.loại_chứng_khoán || 'N/A'}</td>
             <td><span class="status-badge status-${record.status || 'pending'}">${record.status || 'pending'}</span></td>
-            <td><button class="btn btn-sm" onclick="showModal('${record._record_id}')">Chi tiết</button></td>
           `;
           tableBody.appendChild(row);
         });
@@ -852,8 +855,16 @@
 
         // Update modal with record data
         document.getElementById('detailCode').textContent = record.code || 'N/A';
-        document.getElementById('detailTitle').textContent = record.title || 'N/A';
+        document.getElementById('detailName').textContent = record.tên_chứng_khoán || 'N/A';
         document.getElementById('detailOrg').textContent = record.tên_tổ_chức_đăng_ký || 'N/A';
+        document.getElementById('detailISIN').textContent = record.mã_isin || 'N/A';
+        document.getElementById('detailExchange').textContent = record.nơi_giao_dịch || 'N/A';
+        document.getElementById('detailType').textContent = record.loại_chứng_khoán || 'N/A';
+        document.getElementById('detailRegDate').textContent = record.ngày_đăng_ký_cuối || 'N/A';
+        document.getElementById('detailTime').textContent = record.thời_gian_thực_hiện || 'N/A';
+        document.getElementById('detailLocation').textContent = record.địa_điểm_thực_hiện || 'N/A';
+        document.getElementById('detailPurpose').textContent = record.lý_do_mục_đích || 'N/A';
+        document.getElementById('detailRatio').textContent = record.tỷ_lệ_thực_hiện || 'N/A';
         document.getElementById('detailUrl').href = record.url || '#';
         document.getElementById('detailUrl').textContent = 'Xem trên nguồn gốc';
 
@@ -996,108 +1007,3 @@
       }
 </body>
 </html>
-    <script>
-      // Initialize table with click handler
-      function initializeTable(records) {
-        const tableBody = document.getElementById('tableBody');
-        if (!tableBody) return;
-        tableBody.innerHTML = '';
-        if (!records || records.length === 0) {
-          tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Không có dữ liệu</td></tr>';
-          return;
-        }
-        records.forEach(record => {
-          const row = document.createElement('tr');
-          row.style.cursor = 'pointer';
-          row.onclick = () => showModal(record._record_id);
-          row.innerHTML = `<td>${record.code || 'N/A'}</td><td>${record.tên_chứng_khoán || 'N/A'}</td><td>${record.tên_tổ_chức_đăng_ký || 'N/A'}</td><td>${record.nơi_giao_dịch || 'N/A'}</td><td>${record.loại_chứng_khoán || 'N/A'}</td><td><span class="status-badge status-${record.status || 'pending'}">${record.status || 'pending'}</span></td>`;
-          tableBody.appendChild(row);
-        });
-        updateStats(records);
-      }
-
-      function updateStats(records) {
-        const total = records.length;
-        const pending = records.filter(r => r.status === 'pending').length;
-        const confirmed = records.filter(r => r.status === 'confirmed').length;
-        const rejected = records.filter(r => r.status === 'rejected').length;
-        document.getElementById('totalRecords').textContent = total;
-        document.getElementById('pendingCount').textContent = pending;
-        document.getElementById('confirmedCount').textContent = confirmed;
-        document.getElementById('rejectedCount').textContent = rejected;
-      }
-
-      function showModal(recordId) {
-        const records = window.EMBEDDED_DATA?.records || [];
-        const record = records.find(r => r._record_id === recordId);
-        if (!record) { alert('Không tìm thấy record'); return; }
-        document.getElementById('detailCode').textContent = record.code || 'N/A';
-        document.getElementById('detailName').textContent = record.tên_chứng_khoán || 'N/A';
-        document.getElementById('detailOrg').textContent = record.tên_tổ_chức_đăng_ký || 'N/A';
-        document.getElementById('detailISIN').textContent = record.mã_isin || 'N/A';
-        document.getElementById('detailExchange').textContent = record.nơi_giao_dịch || 'N/A';
-        document.getElementById('detailType').textContent = record.loại_chứng_khoán || 'N/A';
-        document.getElementById('detailRegDate').textContent = record.ngày_đăng_ký_cuối || 'N/A';
-        document.getElementById('detailTime').textContent = record.thời_gian_thực_hiện || 'N/A';
-        document.getElementById('detailLocation').textContent = record.địa_điểm_thực_hiện || 'N/A';
-        document.getElementById('detailPurpose').textContent = record.lý_do_mục_đích || 'N/A';
-        document.getElementById('detailRatio').textContent = record.tỷ_lệ_thực_hiện || 'N/A';
-        document.getElementById('detailUrl').href = record.url || '#';
-        const modal = document.getElementById('detailModal');
-        if (modal) modal.style.display = 'flex';
-      }
-
-      function closeModal() {
-        const modal = document.getElementById('detailModal');
-        if (modal) modal.style.display = 'none';
-      }
-
-      function filterTable() {
-        const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
-        const startDate = document.getElementById('startDate')?.value;
-        const endDate = document.getElementById('endDate')?.value;
-        let filtered = window.EMBEDDED_DATA?.records || [];
-        
-        if (search) {
-          filtered = filtered.filter(r => 
-            (r.code && r.code.toLowerCase().includes(search)) ||
-            (r.tên_tổ_chức_đăng_ký && r.tên_tổ_chức_đăng_ký.toLowerCase().includes(search)) ||
-            (r.tên_chứng_khoán && r.tên_chứng_khoán.toLowerCase().includes(search))
-          );
-        }
-        
-        if (startDate || endDate) {
-          filtered = filtered.filter(r => {
-            const [d, m, y] = (r.date || '').split('/');
-            const rDate = d ? new Date(y, m-1, d) : null;
-            const start = startDate ? new Date(startDate) : null;
-            const end = endDate ? new Date(endDate) : null;
-            if (start && rDate < start) return false;
-            if (end && rDate > end) return false;
-            return true;
-          });
-        }
-        
-        if (window.currentStatus && window.currentStatus !== 'all') {
-          filtered = filtered.filter(r => r.status === window.currentStatus);
-        }
-        
-        initializeTable(filtered);
-      }
-
-      window.currentStatus = 'all';
-      function filterByStatus(status) {
-        window.currentStatus = status;
-        document.querySelectorAll('.filter-buttons .btn').forEach(b => b.classList.remove('active'));
-        event.target?.classList.add('active');
-        filterTable();
-      }
-
-      function clearDateFilter() {
-        document.getElementById('startDate').value = '';
-        document.getElementById('endDate').value = '';
-        filterTable();
-      }
-
-      if (window.EMBEDDED_DATA?.records) initializeTable(window.EMBEDDED_DATA.records);
-    </script>
