@@ -920,8 +920,8 @@
           filterTable();
       }
 
-      function showDetail(index) {
-          selectedRecord = allRecords[index];
+      function showDetail(code) {
+          selectedRecord = allRecords.find(r => r.code === code);
           if (!selectedRecord) return;
 
           document.getElementById('modalTitle').textContent = 'Chi tiết - ' + escapeHtml(code);
