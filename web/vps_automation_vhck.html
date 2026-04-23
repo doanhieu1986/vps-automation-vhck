@@ -815,7 +815,7 @@
         records.forEach((record, index) => {
           const row = document.createElement('tr');
           row.style.cursor = 'pointer';
-          row.onclick = () => showModal('${record._record_id}');
+          row.onclick = () => showModal(record._record_id);
           row.innerHTML = `
             <td>${record.code || 'N/A'}</td>
             <td>${record.tên_chứng_khoán || 'N/A'}</td>
