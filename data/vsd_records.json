@@ -3,6 +3,38 @@
   "date": "2026-04-23",
   "records": [
     {
+      "code": "E1VFVN30",
+      "title": "E1VFVN30: Điều chỉnh số lượng chứng chỉ quỹ đăng ký do giao dịch hoán đổi",
+      "url": "https://www.vsd.vn/vi/ad/194868",
+      "date": "23/04/2026",
+      "collected_date": "23/04/2026",
+      "collected_at": "23/04/2026",
+      "source": "VSD",
+      "status": "pending",
+      "tên_tổ_chức_đăng_ký": null,
+      "tên_chứng_khoán": null,
+      "mã_isin": "VN0E1VFVN306",
+      "nơi_giao_dịch": null,
+      "loại_chứng_khoán": null,
+      "ngày_đăng_ký_cuối": null,
+      "lý_do_mục_đích": null,
+      "tỷ_lệ_thực_hiện": null,
+      "thời_gian_thực_hiện": null,
+      "địa_điểm_thực_hiện": null,
+      "quyền_họp_đại_hội_cổ_đông": null,
+      "quyền_cổ_tức_tiền": null,
+      "quyền_cổ_tức_cổ_phiếu": null,
+      "quyền_mua": null,
+      "quyền_hoán_đổi_chuyển_đổi": null,
+      "chứng_quyền": null,
+      "chấp_thuận_đăng_ký": null,
+      "tin_húy": "Hủy đăng ký chứng khoán, trái phiếu",
+      "thay_đổi": null,
+      "text_content": "E1VFVN30: Điều chỉnh số lượng chứng chỉ quỹ đăng ký do giao dịch hoán đổi\nCập nhật ngày 23/04/2026 - 14:02:47\nTổng công ty Lưu ký và Bù trừ chứng khoán Việt Nam (VSDC) thông báo điều chỉnh\nsố lượng chứng chỉ quỹ do giao dịch hoán đổi lần thứ 1598 như sau:\nTên Công ty quản lý quỹ:\nCông ty cổ phần Quản Lý quỹ Đầu tư Dragon Capital Việt Nam\nTên đầy đủ của Quỹ:\nQuỹ ETF DCVFMVN30\nTên chứng chỉ quỹ:\nChứng chỉ Quỹ ETF DCVFMVN30\nMã chứng chỉ quỹ:\nE1VFVN30\nMã ISIN:\nVN0E1VFVN306\nSố lượng CCQ phát hành thêm và đăng ký bổ sung:\n300.000 chứng chỉ quỹ\nSố lượng CCQ bị thu hồi và bị hủy đăng ký:\n500.000 chứng chỉ quỹ\nTổng số lượng CCQ đang lưu hành và đang đăng ký hiện tại:\n177.000.000 chứng chỉ quỹ\nNgày hiệu lực điều chỉnh:\n22/04/2026",
+      "mã_chứng_khoán": null,
+      "confirmation_status": null
+    },
+    {
       "code": "PMJ",
       "title": "PMJ: Tham dự Đại hội đồng cổ đông thường niên năm 2026",
       "url": "https://www.vsd.vn/vi/ad/194870",
@@ -772,7 +804,7 @@
     },
     {
       "code": "DHD",
-      "title": "DHD: Chi trả cổ tức bằng tiền năm 2025; Nhận cổ phiếu phát hành do thực hiện tăng vốn cổ phần từ nguồn vốn chủ sở hữu năm 2026 (Phần 1: Chi trả cổ tức bằng tiền năm 2025)",
+      "title": "DHD: Chi trả cổ tức bằng tiền năm 2025",
       "url": "https://www.vsd.vn/vi/ad/194849",
       "date": "22/04/2026",
       "collected_date": "22/04/2026",
@@ -804,7 +836,7 @@
     },
     {
       "code": "DHD",
-      "title": "DHD: Chi trả cổ tức bằng tiền năm 2025; Nhận cổ phiếu phát hành do thực hiện tăng vốn cổ phần từ nguồn vốn chủ sở hữu năm 2026 (Phần 2: Nhận cổ phiếu phát hành do thực hiện tăn...)",
+      "title": "DHD: Nhận cổ phiếu phát hành do thực hiện tăng vốn cổ phần từ nguồn vốn chủ sở hữu năm 2026",
       "url": "https://www.vsd.vn/vi/ad/194849",
       "date": "22/04/2026",
       "collected_date": "22/04/2026",
@@ -1348,7 +1380,7 @@
     },
     {
       "code": "GEX",
-      "title": "GEX: Trả cổ tức năm 2025 bằng cổ phiếu; Nhận cổ phiếu phát hành để tăng vốn cổ phần từ  nguồn vốn chủ sở hữu (Phần 1: Trả cổ tức năm 2025 bằng cổ phiếu)",
+      "title": "GEX: Trả cổ tức năm 2025 bằng cổ phiếu",
       "url": "https://www.vsd.vn/vi/ad/194831",
       "date": "22/04/2026",
       "collected_date": "22/04/2026",
@@ -1380,7 +1412,7 @@
     },
     {
       "code": "GEX",
-      "title": "GEX: Trả cổ tức năm 2025 bằng cổ phiếu; Nhận cổ phiếu phát hành để tăng vốn cổ phần từ  nguồn vốn chủ sở hữu (Phần 2: Nhận cổ phiếu phát hành để tăng vốn cổ p...)",
+      "title": "GEX: Nhận cổ phiếu phát hành để tăng vốn cổ phần từ  nguồn vốn chủ sở hữu",
       "url": "https://www.vsd.vn/vi/ad/194831",
       "date": "22/04/2026",
       "collected_date": "22/04/2026",
@@ -12419,10 +12451,10 @@
       "confirmation_status": "awaiting_review"
     }
   ],
-  "total_records": 388,
-  "count": 388,
+  "total_records": 389,
+  "count": 389,
   "url": "https://www.vsd.vn/vi/tin-thi-truong-co-so",
   "pages_crawled": 10,
-  "fetched_at": "2026-04-23T13:16:37.953297",
-  "merge_info": "388 new records merged with existing"
+  "fetched_at": "2026-04-23T14:08:24.186170",
+  "merge_info": "389 new records merged with existing"
 }
