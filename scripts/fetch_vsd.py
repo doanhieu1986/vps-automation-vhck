@@ -801,10 +801,32 @@ class VSDFetcher:
                             purposes = [p.strip() for p in lý_do.split(';') if p.strip()]
 
                             if len(purposes) > 1:
+                                # Try to split text_content and tỷ_lệ_thực_hiện by numbered sections
+                                text_content = result_item.get('text_content')
+                                tỷ_lệ = result_item.get('tỷ_lệ_thực_hiện')
+
+                                # Split text_content by numbered sections (1., 2., 3., ...)
+                                sections = {}
+                                if text_content:
+                                    # Find all numbered sections
+                                    pattern = r'^\d+\.\s+(.+?)(?=\n\d+\.\s+|\Z)'
+                                    matches = re.findall(pattern, text_content, re.MULTILINE | re.DOTALL)
+                                    if len(matches) == len(purposes):
+                                        sections = {i+1: match for i, match in enumerate(matches)}
+
                                 # Create a record for each purpose
                                 for idx, purpose in enumerate(purposes, 1):
                                     purpose_item = dict(result_item)
                                     purpose_item['lý_do_mục_đích'] = purpose
+
+                                    # Extract tỷ_lệ_thực_hiện từ section tương ứng
+                                    if idx in sections:
+                                        section_text = sections[idx]
+                                        # Extract tỷ_lệ từ section
+                                        tỷ_lệ_match = re.search(r'Tỷ lệ thực hiện[:\s]+([^\n]+(?:\n-\s+[^\n]+)*)', section_text, re.IGNORECASE)
+                                        if tỷ_lệ_match:
+                                            purpose_item['tỷ_lệ_thực_hiện'] = tỷ_lệ_match.group(1).strip()[:1000]
+
                                     # Update title to show which part
                                     purpose_item['title'] = result_item['title'] + f" (Phần {idx}: {purpose[:40]}...)" if len(purpose) > 40 else result_item['title'] + f" (Phần {idx}: {purpose})"
                                     result_data.append(purpose_item)
