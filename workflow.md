@@ -236,6 +236,43 @@ Input: Commit result
 
 ---
 
+### **Bước 7: Dashboard Interactive (Web UI)**
+
+**Tài liệu:** `DASHBOARD_UI.md` (chi tiết đầy đủ)
+
+**Dashboard tính năng:**
+
+1. **Hiển Thị Dữ Liệu**
+   - Bảng 6 cột: Mã CK | Tên Chứng Khoán | Tổ Chức Đăng Ký | Nơi Giao Dịch | Loại CK | Trạng Thái
+   - Thống kê: Tổng bản ghi | Đã xác nhận | Từ chối | Chờ xử lý
+   - Auto-update khi workflow chạy
+
+2. **Tìm Kiếm & Lọc**
+   - Tìm kiếm theo mã CK, tên chứng khoán, tổ chức (real-time)
+   - Lọc theo khoảng thời gian (từ ngày - đến ngày)
+   - Lọc theo trạng thái (pending/confirmed/rejected)
+   - Kết hợp 3 bộ lọc (search + date + status)
+
+3. **Chi Tiết Modal** (Click vào dòng để xem)
+   - **Kích thước**: 1400px × 85vh (lớn, căn giữa)
+   - **Bố cục 2 cột**:
+     - **Cột trái**: Thông tin chi tiết (basic info + implementation + rights + source)
+     - **Cột phải**: Nội dung tin tức gốc (để so sánh)
+   - **Dark overlay**: 80% opacity để tập trung vào modal
+   - **3 nút**: Xác Nhận | Từ Chối | Đóng
+
+4. **Giao Diện Features**
+   - Responsive design (desktop, tablet, mobile)
+   - Dark theme (slate colors)
+   - Smooth animations (fade, slide)
+   - Professional styling
+
+**Truy cập:**
+- Local: `file:///path/to/index.html`
+- GitHub Pages: `https://doanhieu1986.github.io/vps-automation-vhck/`
+
+---
+
 ## 📊 Data Flow Diagram
 
 ```
@@ -387,6 +424,7 @@ Days: Every day (Mon-Sun)
 ## 📚 Related Files
 
 - **README.md** - System overview
+- **DASHBOARD_UI.md** - 🆕 Web UI dashboard & interactive features (v8.1)
 - **FETCH_VSD_LOGIC.md** - Scraping details
 - **COLUMN_DETERMINATION_LOGIC.md** - Field extraction
 - **DEPLOYMENT_GUIDE.md** - Deploy instructions
@@ -394,6 +432,6 @@ Days: Every day (Mon-Sun)
 
 ---
 
-**Last Updated:** 2026-04-21  
-**Version:** v8 - Complete Flow  
-**Status:** ✅ Active
+**Last Updated:** 2026-04-23  
+**Version:** v8.1 - Dashboard Interactive  
+**Status:** ✅ Production Ready

@@ -1,13 +1,14 @@
-# VPS Automation VHCK v8 - Hệ Thống Tự Động Cập Nhật Thông Tin Quyền Chứng Khoán
+# VPS Automation VHCK v8.1 - Hệ Thống Tự Động Cập Nhật Thông Tin Quyền Chứng Khoán
 
 ## 📋 Tổng Quan
 
-**VPS Automation VHCK v8** là hệ thống tự động hoàn toàn dùng để:
+**VPS Automation VHCK v8.1** là hệ thống tự động hoàn toàn dùng để:
 - 🔄 Thu thập thông tin quyền chứng khoán từ VSD hàng ngày
 - 📊 Lưu dữ liệu vào JSON và Excel
-- 🌐 Hiển thị trên dashboard web với chức năng tìm kiếm, lọc
+- 🌐 Hiển thị trên dashboard web **interactive** với chức năng tìm kiếm, lọc
 - 💾 Cập nhật tự động lên GitHub Pages
 - ✅ Cho phép VHCK xác nhận trạng thái dữ liệu trên web UI
+- ✨ **Chi tiết modal 2 cột**: Thông tin chi tiết + Nội dung tin tức gốc để so sánh
 
 ---
 
@@ -297,8 +298,9 @@ Giải pháp:
 | File | Purpose |
 |------|---------|
 | `README.md` | Tổng quan hệ thống (file này) |
+| `DASHBOARD_UI.md` | 🆕 Chi tiết dashboard interactive (v8.1 mới) |
 | `CLAUDE.md` | Project instructions |
-| `workflow.md` | Chi tiết quy trình luồng |
+| `workflow.md` | Chi tiết quy trình luồng (cập nhật v8.1) |
 | `FETCH_VSD_LOGIC.md` | Logic scraping VSD |
 | `COLUMN_DETERMINATION_LOGIC.md` | Logic xác định columns |
 | `DEPLOYMENT_GUIDE.md` | Hướng dẫn deploy v8 |
@@ -327,6 +329,30 @@ Tất cả tài liệu liên quan:
 
 ---
 
-**Last Updated:** 2026-04-21  
-**Version:** v8 - Complete Flow  
-**Status:** ✅ Active & Deployed
+---
+
+## 🎉 Phiên Bản v8.1 - What's New?
+
+### ✨ Dashboard Interactive Features (NEW in v8.1)
+- **2-Column Modal**: Thông tin chi tiết (trái) + Nội dung gốc (phải) để so sánh
+- **Enlarged Modal**: 1400px × 85vh, căn giữa màn hình
+- **Dark Overlay**: 80% opacity để tập trung xem
+- **Complete Details**: Tất cả 9 trường quyền & lợi ích được hiển thị
+- **Full News Content**: Xem toàn bộ nội dung tin tức gốc
+- **Advanced Filters**: Kết hợp tìm kiếm + thời gian + trạng thái
+- **Real-time Search**: Tìm kiếm tức thời khi gõ
+- **Responsive Design**: Tối ưu cho desktop, tablet, mobile
+
+### 🔧 Technical Improvements (v8.1)
+- Fixed modal CSS class management (use .show class)
+- Proper flexbox centering for modal
+- Increased background overlay opacity (0.7 → 0.8)
+- Proper HTML structure (script tags in correct order)
+- All filter functions working correctly (search + date + status)
+- Complete field population in modal
+
+---
+
+**Last Updated:** 2026-04-23  
+**Version:** v8.1 - Dashboard Interactive  
+**Status:** ✅ Production Ready
