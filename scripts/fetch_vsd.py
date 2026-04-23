@@ -18,6 +18,7 @@ import os
 from datetime import datetime, timedelta
 import re
 import logging
+import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
@@ -62,6 +63,42 @@ class VSDFetcher:
             return datetime.strptime(date_string, '%d/%m/%Y').date()
         except:
             return None
+
+    def generate_record_id(self, record, split_idx=None):
+        """
+        Generate stable, unique _record_id for a record.
+        Same record will have same ID across runs (safe for daily updates).
+
+        Strategy:
+        - If code exists: use code as base ID
+        - If no code: hash title + date to create stable ID
+        - If split: append _split_idx to make it unique
+
+        Args:
+            record: The record dict with 'code', 'title', 'date' fields
+            split_idx: If record is split (1, 2, 3...), append to ID
+
+        Returns:
+            Stable record ID string (e.g., "GEX", "GEX_1", "hash123")
+        """
+        code = record.get('code', '').strip()
+
+        if code:
+            # Use code as base ID (most reliable)
+            record_id = code
+        else:
+            # Fallback: hash title + date to create stable ID
+            title = record.get('title', '')
+            date = record.get('date', '')
+            content = f"{title}_{date}".encode('utf-8')
+            hash_suffix = hashlib.md5(content).hexdigest()[:8]
+            record_id = f"rec_{hash_suffix}"
+
+        # If split record, append index to make unique
+        if split_idx is not None:
+            record_id = f"{record_id}_{split_idx}"
+
+        return record_id
 
     def get_vptoken(self):
         """Extract VPToken từ <meta name='__VPToken'> trên trang list"""
@@ -830,6 +867,11 @@ class VSDFetcher:
                                     # Update title to show only the specific purpose for this split record
                                     code = result_item.get('code', 'N/A')
                                     purpose_item['title'] = f"{code}: {purpose}"
+
+                                    # Add unique stable ID for split records (used for modal lookup)
+                                    # split_idx makes it unique across runs
+                                    purpose_item['_record_id'] = self.generate_record_id(purpose_item, split_idx=idx)
+
                                     result_data.append(purpose_item)
                                     logger.error(f"    ✓ Split {code} by purpose: [{idx}] {purpose[:60]}")
                             else:
@@ -843,6 +885,13 @@ class VSDFetcher:
                         logger.error(f"Future error {code}: {str(e)[:30]}")
 
             logger.info(f"  ✓ Hoàn thành extract chi tiết từ {len(result_data)} tin")
+
+            # Add unique stable _record_id to all records (for modal lookup)
+            # Split records already have _record_id (e.g., "GEX_1", "GEX_2")
+            # Non-split records get _record_id based on code or hashed content
+            for record in result_data:
+                if '_record_id' not in record:
+                    record['_record_id'] = self.generate_record_id(record)
 
             # Merge với records cũ để tránh duplicate
             merged_data = result_data  # Mặc định chỉ có data mới
