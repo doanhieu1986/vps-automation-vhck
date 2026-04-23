@@ -631,125 +631,129 @@
                 <div class="modal-title" id="modalTitle">Chi tiết mã CK</div>
                 <button class="modal-close" onclick="closeModal()">X</button>
             </div>
-            <div class="modal-body">
-                <div class="detail-section">
-                    <div class="section-title">Thông Tin Cơ Bản</div>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <div class="detail-label">Mã Chứng Khoán</div>
-                            <div class="detail-value" id="detailCode">--</div>
+            <div class="modal-body" style="display: flex; gap: 20px;">
+                <div style="flex: 1; overflow-y: auto; max-height: 70vh;">
+                    <div class="detail-section">
+                        <div class="section-title">Thông Tin Cơ Bản</div>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Mã Chứng Khoán</div>
+                                <div class="detail-value" id="detailCode">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Tên Chứng Khoán</div>
+                                <div class="detail-value" id="detailName">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Tổ Chức Đăng Ký</div>
+                                <div class="detail-value" id="detailOrg">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Mã ISIN</div>
+                                <div class="detail-value" id="detailISIN">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Nơi Giao Dịch</div>
+                                <div class="detail-value" id="detailExchange">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Loại Chứng Khoán</div>
+                                <div class="detail-value" id="detailType">--</div>
+                            </div>
                         </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Tên Chứng Khoán</div>
-                            <div class="detail-value" id="detailName">--</div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="section-title">Thông Tin Thực Hiện</div>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Ngày Đăng Ký Cuối</div>
+                                <div class="detail-value" id="detailRegDate">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Thời Gian Thực Hiện</div>
+                                <div class="detail-value" id="detailTime">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Địa Điểm Thực Hiện</div>
+                                <div class="detail-value" id="detailLocation">--</div>
+                            </div>
                         </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Tổ Chức Đăng Ký</div>
-                            <div class="detail-value" id="detailOrg">--</div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="section-title">Quyền và Lợi Ích</div>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Quyền Họp Đại Hội Cổ Đông</div>
+                                <div class="detail-value" id="detailRightShMeeting">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Quyền Cổ Tức Tiền</div>
+                                <div class="detail-value" id="detailRightDividendCash">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Quyền Cổ Tức Cổ Phiếu</div>
+                                <div class="detail-value" id="detailRightDividendShare">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Quyền Mua</div>
+                                <div class="detail-value" id="detailRightPurchase">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Quyền Hoán Đổi / Chuyển Đổi</div>
+                                <div class="detail-value" id="detailRightSwapConversion">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Chứng Quyền</div>
+                                <div class="detail-value" id="detailWarrant">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Chấp Thuận Đăng Ký</div>
+                                <div class="detail-value" id="detailRegistrationApproval">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Tin Hủy</div>
+                                <div class="detail-value" id="detailCancellation">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Thay Đổi</div>
+                                <div class="detail-value" id="detailChange">--</div>
+                            </div>
                         </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Mã ISIN</div>
-                            <div class="detail-value" id="detailISIN">--</div>
+                        <div style="margin-top: 15px;">
+                            <div class="detail-label">Lý Do / Mục Đích</div>
+                            <div class="detail-value" id="detailPurpose" style="margin-top: 8px;">--</div>
                         </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Nơi Giao Dịch</div>
-                            <div class="detail-value" id="detailExchange">--</div>
+                        <div style="margin-top: 15px;">
+                            <div class="detail-label">Tỷ Lệ Thực Hiện</div>
+                            <div class="detail-value" id="detailRatio" style="margin-top: 8px;">--</div>
                         </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Loại Chứng Khoán</div>
-                            <div class="detail-value" id="detailType">--</div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="section-title">Nguồn Dữ Liệu</div>
+                        <div>
+                            <div class="detail-label">URL Gốc</div>
+                            <a id="detailUrl" href="#" target="_blank" class="source-link">Xem trên nguồn gốc</a>
                         </div>
                     </div>
                 </div>
 
-                <div class="detail-section">
-                    <div class="section-title">Thông Tin Thực Hiện</div>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <div class="detail-label">Ngày Đăng Ký Cuối</div>
-                            <div class="detail-value" id="detailRegDate">--</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Thời Gian Thực Hiện</div>
-                            <div class="detail-value" id="detailTime">--</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Địa Điểm Thực Hiện</div>
-                            <div class="detail-value" id="detailLocation">--</div>
+                <div id="fullTextSection" style="flex: 1; overflow-y: auto; max-height: 70vh; border-left: 1px solid #334155; padding-left: 20px; display: none;">
+                    <div class="detail-section">
+                        <div class="section-title">Nội Dung Chính Của Tin Tức</div>
+                        <div class="full-text-section">
+                            <div class="full-text" id="detailFullText" style="white-space: pre-wrap; word-break: break-word; line-height: 1.6; font-size: 13px; color: #cbd5e1;"></div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="detail-section">
-                    <div class="section-title">Quyền và Lợi Ích</div>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <div class="detail-label">Quyền Họp Đại Hội Cổ Đông</div>
-                            <div class="detail-value" id="detailRightShMeeting">--</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Quyền Cổ Tức Tiền</div>
-                            <div class="detail-value" id="detailRightDividendCash">--</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Quyền Cổ Tức Cổ Phiếu</div>
-                            <div class="detail-value" id="detailRightDividendShare">--</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Quyền Mua</div>
-                            <div class="detail-value" id="detailRightPurchase">--</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Quyền Hoán Đổi / Chuyển Đổi</div>
-                            <div class="detail-value" id="detailRightSwapConversion">--</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Chứng Quyền</div>
-                            <div class="detail-value" id="detailWarrant">--</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Chấp Thuận Đăng Ký</div>
-                            <div class="detail-value" id="detailRegistrationApproval">--</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Tin Hủy</div>
-                            <div class="detail-value" id="detailCancellation">--</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Thay Đổi</div>
-                            <div class="detail-value" id="detailChange">--</div>
-                        </div>
-                    </div>
-                    <div style="margin-top: 15px;">
-                        <div class="detail-label">Lý Do / Mục Đích</div>
-                        <div class="detail-value" id="detailPurpose" style="margin-top: 8px;">--</div>
-                    </div>
-                    <div style="margin-top: 15px;">
-                        <div class="detail-label">Tỷ Lệ Thực Hiện</div>
-                        <div class="detail-value" id="detailRatio" style="margin-top: 8px;">--</div>
-                    </div>
-                </div>
-
-                <div class="detail-section">
-                    <div class="section-title">Nguồn Dữ Liệu</div>
-                    <div>
-                        <div class="detail-label">URL Gốc</div>
-                        <a id="detailUrl" href="#" target="_blank" class="source-link">Xem trên nguồn gốc</a>
-                    </div>
-                </div>
-
-                <div class="detail-section" id="fullTextSection" style="display: none;">
-                    <div class="section-title">Nội Dung Chính Của Tin Tức</div>
-                    <div class="full-text-section">
-                        <div class="full-text" id="detailFullText"></div>
-                    </div>
-                </div>
-
-                <div class="action-buttons">
-                    <button class="btn btn-confirm" onclick="confirmRecord()">Xác Nhận</button>
-                    <button class="btn btn-reject" onclick="rejectRecord()">Từ Chối</button>
-                    <button class="btn btn-cancel" onclick="closeModal()">Đóng</button>
-                </div>
+            <div class="action-buttons">
+                <button class="btn btn-confirm" onclick="confirmRecord()">Xác Nhận</button>
+                <button class="btn btn-reject" onclick="rejectRecord()">Từ Chối</button>
+                <button class="btn btn-cancel" onclick="closeModal()">Đóng</button>
             </div>
         </div>
     </div>
