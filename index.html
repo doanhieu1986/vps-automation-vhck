@@ -842,7 +842,7 @@
           tbody.innerHTML = filtered.map(record => {
               return '<tr onclick="showDetail(\'' + escapeHtml(record.code) + '\')" style="cursor: pointer;">' +
                   '<td class="symbol-cell">' + escapeHtml(record.code) + '</td>' +
-                  '<td>' + escapeHtml(record.tên_chứng_khoán || '--') + '</td>' +
+                  '<td>' + escapeHtml(record.title || record.tên_chứng_khoán || '--') + '</td>' +
                   '<td>' + escapeHtml(record.tên_tổ_chức_đăng_ký || '--') + '</td>' +
                   '<td>' + escapeHtml(record.nơi_giao_dịch || '--') + '</td>' +
                   '<td>' + escapeHtml(record.loại_chứng_khoán || '--') + '</td>' +
