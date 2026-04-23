@@ -858,18 +858,15 @@ class VSDFetcher:
 
                     logger.info(f"  📝 Keeping all {len(result_data)} records including split by purpose (no deduplication)")
 
+                    # Create set of codes in new data for quick lookup
+                    new_codes_set = set(r.get('code') for r in result_data)
+
                     # Thêm existing records nếu không trùng với code mới
                     added_count = 0
                     for existing_record in existing_records:
-                        if existing_record.get('code') not in new_codes:
+                        if existing_record.get('code') not in new_codes_set:
                             merged_data.append(existing_record)
                             added_count += 1
-                        else:
-                            # Nếu code trùng, preserve status từ old record
-                            code = existing_record.get('code')
-                            if code in new_codes and existing_record.get('status'):
-                                new_codes[code]['status'] = existing_record.get('status')
-                            logger.debug(f"  ! Updating {code} with new data (preserved status: {existing_record.get('status')})")
 
                     logger.info(f"  ✓ Merged: {len(result_data)} new + {added_count} added existing = {len(merged_data)} total")
                     total_count = len(merged_data)
